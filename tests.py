@@ -1,6 +1,7 @@
 import HSI
 import numpy as np
 from scipy.signal import find_peaks, peak_prominences, peak_widths, savgol_filter
+import scipy.stats
 from sklearn import preprocessing
 import spectral
 from time import perf_counter as pfc
@@ -27,4 +28,14 @@ import load_sample_spectra
 
 # Creating linspaces
 ls = np.linspace(0, 1, 10)
+ls_long = np.linspace(0, 150, 10)
 print(ls)
+
+# Creating example spectrum
+s = np.array([22, 23, 24, 25, 26, 26.7, 27.4, 28, 29, 30])
+
+pearsons_r = scipy.stats.pearsonr(ls, s)
+print(pearsons_r)
+
+pearsons_r = scipy.stats.pearsonr(ls_long, s)
+print(pearsons_r)

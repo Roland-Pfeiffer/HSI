@@ -57,8 +57,8 @@ class Spectra:
         self.intensities = intensities
         self.material_column = material_column
 
-    def random_subsample(self, n=250):
-        subset_index = random.choices(range(self.intensities.shape[0]), k=n)
+    def random_subsample(self, n=250, seed=42):
+        subset_index = random.choices(range(self.intensities.shape[0]), k=n) # ToDo: Incorporate seed
         return Spectra(self.intensities[subset_index], self.wlv, self.material_column)
 
     def export_npz(self, savename):
