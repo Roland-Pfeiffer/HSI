@@ -12,13 +12,15 @@ from typing import Union  # So multiple types can be specified in function annot
 #       would dictionaries be too slow?
 #       This is actually the case with Josef's reference spectra.
 
+# ToDo: Take into account peak prominence.
+
+# ToDo: normalisation, mean centering (in preprocessing function?)
+
 
 def load_hsi(fpath: str) -> 'hdr, img, wlv':
     """hdr, img, wlv = hsi_import(fpath)\n\n
-    Takes path to a header (.hdr) hsi file and returns
-    header file, hypercube array and wavelength vector (WLV)
-    (aka wavenumbers).
-    WLV is retrieved from the centers of bands.
+    Takes path to a header (.hdr) hsi file and returns header file, hypercube array and wavelength vector (WLV)
+    (aka wavenumbers). WLV is retrieved from the centers of bands.
     :rtype: .hdr, np.array, np.array
     """
     hdr = spectral.open_image(fpath)
@@ -26,10 +28,9 @@ def load_hsi(fpath: str) -> 'hdr, img, wlv':
     wlv = np.array(hdr.bands.centers)
     return hdr, img_cube, wlv
 
-# def preprocessing(spectra: Spectra):
-#
-#     pass
-#     # ToDo: normalisation, mean centering
+
+def preprocessing(spectra: Spectra):
+    pass
 
 
 def find_peaks(spectrum: np.array, wlv: np.array):
@@ -44,8 +45,9 @@ class Spectra:
         self.intensities = intensities
         self.material_column = material_column
 
-    def random_subsample(self, n=250, seed=42):
-        subset_index = random.choices(range(self.intensities.shape[0]), k=n) # ToDo: Incorporate seed
+    def random_subsample(self, n=250, seed: int = 42):
+        random.seed(seed)
+        subset_index = random.choices(range(self.intensities.shape[0]), k=n)
         return Spectra(self.intensities[subset_index], self.wlv, self.material_column)
 
     def export_npz(self, savename):
@@ -114,17 +116,11 @@ class TriangleDescriptor:
         self.material_name = material_name
         # Wavelength values validation
         if not wl_start < wl_peak < wl_stop:
-            raise ValueError('Invalid wavelengths input.\n'
-                             'Are they float or int?\n'
-                             'Are they in order START, PEAK, STOP?')
+            raise ValueError('Invalid wavelengths input.\nAre they float or int?\nAre they in order START, PEAK, STOP?')
         # Wavelength attributes for start, peak and stop
-        self.start_wl = wl_start
-        self.peak_wl = wl_peak
-        self.stop_wl = wl_stop
+        self.start_wl, self.peak_wl, self.stop_wl = wl_start, wl_peak, wl_stop
         # Initiate index attributes
-        self.start_bin_index = None
-        self.peak_bin_index = None
-        self.stop_bin_index = None
+        self.start_bin_index, self.peak_bin_index, self.stop_bin_index = None, None, None
         # Initiate Pearson Correlation Coefficients
         self.pearsons_r_asc = tuple()
         self.pearsons_r_desc = tuple()
@@ -167,7 +163,7 @@ class TriangleDescriptor:
             .format((self.start_wl, self.peak_wl, self.stop_wl))
 
     def __get__(self):
-        return tuple(self.start_wl, self.peak_wl, self.stop_wl)
+        return self.start_wl, self.peak_wl, self.stop_wl
 
 
 def pearson_corr_coeff(descriptors, samples):
