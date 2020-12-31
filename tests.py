@@ -8,6 +8,7 @@ from time import perf_counter as pfc
 import matplotlib.pyplot as plt
 from PIL import Image
 import load_sample_spectra
+import random
 
 # fname = '/media/findux/DATA/HSI_Data/recycling, sorting/white_plastics_mask.png'
 #
@@ -25,17 +26,14 @@ import load_sample_spectra
 # mask_vector_i = np.where(mask_vector == 1)[0]
 # print(mask_vector_i)
 
-
-# Creating linspaces
-ls = np.linspace(0, 1, 10)
-ls_long = np.linspace(0, 150, 10)
-print(ls)
-
-# Creating example spectrum
-s = np.array([22, 23, 24, 25, 26, 26.7, 27.4, 28, 29, 30])
-
-pearsons_r = scipy.stats.pearsonr(ls, s)
-print(pearsons_r)
-
-pearsons_r = scipy.stats.pearsonr(ls_long, s)
-print(pearsons_r)
+# # Pearson tests
+# # Creating linspaces
+# ls = np.linspace(0, 1, 10)
+# ls_long = np.linspace(0, 150, 10)
+# print(ls)
+# # Creating example spectrum
+# s = np.array([22, 23, 24, 25, 26, 26.7, 27.4, 28, 29, 30])
+# pearsons_r = scipy.stats.pearsonr(ls, s)
+# print(pearsons_r)
+# pearsons_r = scipy.stats.pearsonr(ls_long, s)
+# print(pearsons_r)

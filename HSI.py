@@ -18,7 +18,7 @@ from typing import Union  # So multiple types can be specified in function annot
 
 
 def load_hsi(fpath: str) -> 'hdr, img, wlv':
-    """hdr, img, wlv = hsi_import(fpath)\n\n
+    """hdr, img, wlv = load_hsi(fpath)\n\n
     Takes path to a header (.hdr) hsi file and returns header file, hypercube array and wavelength vector (WLV)
     (aka wavenumbers). WLV is retrieved from the centers of bands.
     :rtype: .hdr, np.array, np.array
@@ -26,11 +26,19 @@ def load_hsi(fpath: str) -> 'hdr, img, wlv':
     hdr = spectral.open_image(fpath)
     img_cube = hdr.load()
     wlv = np.array(hdr.bands.centers)
-    return hdr, img_cube, wlv
+    spct = Spectra(unfold_cube(img_cube), wlv)
+    return spct
 
 
-def preprocessing(spectra: Spectra):
-    pass
+def unfold_cube(cube):
+    """spectra = unfold_cube(cube)\n\n
+    Unfolds a hypercube of the dimensions (x, y, z) into a 2D array
+    of the dimensions (x * y, z) containing the spectra for each pixel.
+    """
+    _cubearray = np.array(cube)
+    _x, _y, _spec = _cubearray.shape
+    spectra = _cubearray.reshape((_x * _y, _spec))
+    return spectra
 
 
 def find_peaks(spectrum: np.array, wlv: np.array):
@@ -46,6 +54,10 @@ class Spectra:
         self.material_column = material_column
 
     def random_subsample(self, n=250, seed: int = 42):
+        # Account for n >= numbe of spectra:
+        if n >= self.intensities.shape[0]:
+            return Spectra(self.intensities, self.wlv)
+        # Otherwise, take random sample
         random.seed(seed)
         subset_index = random.choices(range(self.intensities.shape[0]), k=n)
         return Spectra(self.intensities[subset_index], self.wlv, self.material_column)
@@ -58,17 +70,6 @@ class Spectra:
         y = self.intensities
         plt.plot(x, y.T)
         plt.show()
-
-
-def unfold_cube(cube):  # Rename to unfold cube?
-    """spectra = spectra_from_cube(cube)\n\n
-    Unfolds a hypercube of the dimensions (x, y, z) into a 2D array
-    of the dimensions (x * y, z) containing the spectra for each pixel.
-    """
-    _cubearray = np.array(cube)
-    _x, _y, _spec = _cubearray.shape
-    spectra = _cubearray.reshape((_x * _y, _spec))
-    return spectra
 
 
 def random_spectrum(spectra):  # Can be replaced by "Spectra.random_subsample(n=1)
