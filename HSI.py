@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import spectral
 import numpy as np
+import scipy.stats
 import matplotlib.pyplot as plt
 import math
 import random
@@ -29,20 +30,6 @@ def load_hsi(fpath: str) -> 'hdr, img, wlv':
 #
 #     pass
 #     # ToDo: normalisation, mean centering
-
-
-def align_with_bins(wlv_bins: np.array, wl: np.array):
-    """Outputs the nearest bin center value for wavelengths that
-    are not exactly matching with the bin centers.\n\n
-    Adapted from: https://stackoverflow.com/a/26026189
-    """
-    idx = np.searchsorted(wlv_bins, wl, side="left")
-    if idx > 0 and (idx == len(wlv_bins)
-                    or math.fabs(wl - wlv_bins[idx - 1]) < math.fabs(wl - wlv_bins[idx])):
-        return wlv_bins[idx - 1]
-    else:
-        return wlv_bins[idx]
-
 
 
 def find_peaks(spectrum: np.array, wlv: np.array):
@@ -120,7 +107,9 @@ class TriangleDescriptor:
     as a WavelengthVector object as input.
     """
     def __init__(self, material_name: str,
-                 wl_start: Union[int, float], wl_peak: Union[int, float], wl_stop: Union[int, float],
+                 wl_start: Union[int, float],
+                 wl_peak: Union[int, float],
+                 wl_stop: Union[int, float],
                  wlv: np.array):
         self.material_name = material_name
         # Wavelength values validation
@@ -129,83 +118,56 @@ class TriangleDescriptor:
                              'Are they float or int?\n'
                              'Are they in order START, PEAK, STOP?')
         # Wavelength attributes for start, peak and stop
-        self.start_wl = align_with_bins(wl_start)
-        self.peak_wl = align_with_bins(wl_peak)
-        self.stop_wl = align_with_bins(wl_stop)
-        # Initiate bin centers
-        self.start_bin = None
-        self.peak_bin = None
-        self.stop_bin = None
+        self.start_wl = wl_start
+        self.peak_wl = wl_peak
+        self.stop_wl = wl_stop
         # Initiate index attributes
         self.start_bin_index = None
         self.peak_bin_index = None
         self.stop_bin_index = None
-        # Initiate linspace
-        self.asc_linspace = None
-        self.desc_linspace = None
+        # Initiate Pearson Correlation Coefficients
+        self.pearsons_r_asc = tuple()
+        self.pearsons_r_desc = tuple()
+        self.pearsons_r_avg = (self.pearsons_r_asc[0] + self.pearsons_r_desc[0]) / 2
 
-    def compare_to_spectrum(self, spectrum, wlv): # ToDo: Maybe separate this into its own function
+    def compare_to_spectrum(self, spectrum, wlv: np.array):  # ToDo: Maybe separate this into its own function
         """
         Takes a Spectrum as input and then compares how well it is matched by the descriptors.
         ToDo: The actual comparison.
         :param spectrum:
+        :param wlv:
         :return:
         """
-        # CHECK IF THE PEAK LOCATIONS ARE OKAY AND ADJUST FOR OUT-OF-RANGE VALUES.
-        if self.peak_wl < min(wlv) or self.peak_wl > max(wlv):
-            raise ValueError('Descriptor peak falls outside of spectrum\'s wavelength vector.')
-        # If all values are within spectrum WLV range:
-        if min(wlv) <= self.start_wl < self.peak_wl < self.stop_wl <= max(wlv):
-            self.start_bin = align_with_bins(wlv, self.start_wl)
-            self.peak_bin = align_with_bins(wlv, self.peak_wl)
-            self.stop_bin = align_with_bins(wlv, self.stop_wl)
-        # Out-of-range values:
-        elif self.start_wl < min(wlv) < self.peak_wl < self.stop_wl <= max(wlv):
-            self.start_bin = min(wlv)
-            print('Starting wavelength coincides with spectrum\'s WLV range limit or lies beyond.\n'
-                  'Set to minimum WLV value.')
-            self.peak_bin = align_with_bins(wlv, self.peak_wl)
-            self.stop_bin = align_with_bins(wlv, self.stop_wl)
-        elif min(wlv.wavelengths) <= self.start_wl < self.peak_wl < max(wlv.wavelengths) <= self.stop_wl:
-            self.start_bin = align_with_bins(wlv, self.start_wl)
-            self.peak_bin = align_with_bins(wlv, self.peak_wl)
-            self.stop_bin = max(wlv)
-            print('Starting wavelength coincides with spectrum\'s WLV range limit or lies beyond.\n'
-                  'Set to maximum WLV value.')
-        # Both values out of range (Unlikely. Consider raising a value error.)
-        elif self.start_wl < min(wlv) < max(wlv) < self.stop_wl:
-            self.start_bin = min(wlv)
-            self.peak_bin = align_with_bins(wlv, self.peak_wl)
-            self.stop_bin = max(wlv)
-            print('Starting and stopping wavelengths coincide with spectrum\'s WLV range limit or lie beyond.\n'
-                  'Set to minimum and maximum WLV value, respectively.')
-        else:
-            raise ValueError('ERROR: Setting start, peak and stop values failed.')
+        # Account for values outside of wlv range:
+        assert min(wlv) < self.peak_wl < max(wlv)
+        if self.start_wl <= min(wlv): self.start_wl = min(wlv)
+        if self.stop_wl >= max(wlv): self.stop_wl = max(wlv)
 
-        # Get bin indices (for spectrum wlv)
-        self.start_bin_index = np.where(wlv.wavelengths == self.start_bin)[0]
-        self.peak_bin_index = np.where(wlv.wavelengths == self.peak_bin)[0]
-        self.stop_bin_index = np.where(wlv.wavelengths == self.stop_bin)[0]
+        # Get bin indices
+        self.start_bin_index = np.argmin(np.abs(wlv - self.start_wl))
+        self.peak_bin_index = np.argmin(np.abs(wlv - self.start_wl))
+        self.stop_bin_index = np.argmin(np.abs(wlv - self.start_wl))
 
-        # ToDo: create in-index-mask to select descriptor range for cutting spectrum to descriptor range
-        #       call it descriptor_range_indices
-        # Or:   use "spectra[:, start_bin_i:stop_bin_i + 1]
-
+        # Create linspaces
         before_peak = int(self.peak_bin_index - self.start_bin_index)
         after_peak = int(self.stop_bin_index - self.peak_bin_index)
+        asc_linspace = np.linspace(0, 1, before_peak)
+        desc_linspace = np.linspace(1, 0, after_peak)
+        # print(asc_linspace)
+        # print(desc_linspace)
 
-        self.asc_linspace = np.linspace(0, 1, before_peak)
-        self.desc_linspace = np.linspace(1, 0, after_peak)
-        print(self.asc_linspace)
-        print(self.desc_linspace)
-
-        # ToDo: Create linspace
-        # ToDo: Run pearson:
+        # Calculate Pearson's Correlation Coefficient (r):
+        self.pearsons_r_asc = scipy.stats.pearsonr(spectrum[self.start_bin_index:self.peak_bin_index + 1], asc_linspace)
+        self.pearsons_r_desc = scipy.stats.pearsonr(spectrum[self.peak_bin_index:self.stop_bin_index + 1], asc_linspace)
+        return self.pearsons_r_avg
 
     # Output when print() is run on the descriptor:
     def __str__(self):
         return 'HSI.TriangleDescriptor: {0} (start, peak, stop)'\
             .format((self.start_wl, self.peak_wl, self.stop_wl))
+
+    def __get__(self):
+        return tuple(self.start_wl, self.peak_wl, self.stop_wl)
 
 
 def pearson_corr_coeff(descriptors, samples):
