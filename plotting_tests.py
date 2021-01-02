@@ -5,6 +5,10 @@ import load_sample_spectra
 import HSI
 import sys
 import random
+import numpy as np
+import seaborn as sns
+import pandas as pd
+
 
 # # Using Josef's sample spectra:
 # data, wlv, material_names = load_sample_spectra.load_spectra()
@@ -42,13 +46,32 @@ fname_plast_mask = '/media/findux/DATA/HSI_Data/recycling, sorting/white_plastic
 fname_specim = '/media/findux/DATA/HSI_Data/SPECIM_field_data/2019-06-04_Flatskär/2019-06-04_005/capture/2019-06-04_005.hdr'
 
 print('Loading hdr...')
-hdr, cube, wlv = HSI.load_hsi(fname_specim)
-print(cube.shape)
-print('Unfolding...')
-data_unf = HSI.unfold_cube(cube)
-print('Creating Spectra class...')
-wlv_obj = HSI.WavelengthVector(wlv)
-spectra = HSI.Spectra(data_unf, wlv_obj)
+spectra = HSI.load_hsi(fname_specim)
+wlv = spectra.wlv
 spectra = spectra.random_subsample(3000)
+# plt.figure('Raw')
+# plt.plot(wlv, spectra.intensities.T)
 
-spectra.plot()
+print('Scaling...')
+spectra_scaled = HSI.Spectra(preprocessing.scale(spectra.intensities), wlv)
+# plt.figure('Scaled')
+# plt.plot(wlv, spectra_scaled.intensities.T)
+
+print('Normalizing...')
+spectra_scaled_norm = HSI.Spectra(preprocessing.normalize(spectra_scaled.intensities), wlv)
+plt.figure('Scaled and normalized')
+plt.plot(wlv, spectra_scaled_norm.intensities.T)
+plt.show()
+
+# # Seaborn
+# # AINT NOBODY GOT TIME FOR THIS
+# print(wlv.shape)
+# print(spectra_scaled_norm.intensities.shape)
+# merged = np.vstack((wlv.T, spectra_scaled_norm.intensities))
+# merged = pd.DataFrame(merged.T)
+# merged.rename(columns={0: 'WLV'}, inplace=True)
+# print(merged)
+# g = sns.lineplot(data=merged)
+# g.plot()
+# plt.show()
+# # g = sns.catplot(x="X_Axis", y="vals", hue='cols', data=merged_melted)

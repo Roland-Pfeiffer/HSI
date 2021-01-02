@@ -8,9 +8,8 @@ import logging
 logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s]\t%(message)s')
 # logging.disable()
 
-fname_specim = '/media/findux/DATA/Documents/Kberg_III_EPA/Hyperspectral_imaging_field_data/' + \
-               'Sample_data/2017-08-15_004/results/REFLECTANCE_2017-08-15_004.hdr'
-fname_imec = '/media/findux/DATA/imec/sample data/sample_data_pills_and_leaf.hdr'
+fname_specim = '/media/findux/DATA/HSI_Data/SPECIM_field_data/Sample_data/2017-08-15_004/capture/2017-08-15_004.hdr'
+fname_imec = '/media/findux/DATA/HSI_Data/imec_sample data/sample_data_pills_and_leaf.hdr'
 
 knn_classes = 3
 knn_iterations = 100
