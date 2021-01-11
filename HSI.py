@@ -102,6 +102,13 @@ class MulticlassMask:
 def mask_spectra(spectra: Spectra, mask: BinaryMask):
     pass
 
+class Descriptor:
+    """General descriptor class.
+    TriangleDescriptor classes etc. inherit from this.
+    Buuuut: what is there to inherit?
+    """
+    def __init__(self):
+        pass  # ToDo. This
 
 class TriangleDescriptor:
     """ToDo: Break this up.
@@ -109,11 +116,10 @@ class TriangleDescriptor:
     Takes a start wavelength, peak wavelengths and stop wavelength, as well
     as a WavelengthVector object as input.
     """
-    def __init__(self, material_name: str,
-                 wl_start: Union[int, float],
+    def __init__(self, wl_start: Union[int, float],
                  wl_peak: Union[int, float],
                  wl_stop: Union[int, float],
-                 wlv: np.array):
+                 material_name: str = 'Material'):
         self.material_name = material_name
         # Wavelength values validation
         if not wl_start < wl_peak < wl_stop:
@@ -123,9 +129,9 @@ class TriangleDescriptor:
         # Initiate index attributes
         self.start_bin_index, self.peak_bin_index, self.stop_bin_index = None, None, None
         # Initiate Pearson Correlation Coefficients
-        self.pearsons_r_asc = tuple()
-        self.pearsons_r_desc = tuple()
-        self.pearsons_r_avg = (self.pearsons_r_asc[0] + self.pearsons_r_desc[0]) / 2
+        self.pearsons_r_asc = None
+        self.pearsons_r_desc = None
+        self.pearsons_r_avg = None
 
     def compare_to_spectrum(self, spectrum, wlv: np.array):  # ToDo: Maybe separate this into its own function
         """
@@ -155,7 +161,7 @@ class TriangleDescriptor:
 
         # Calculate Pearson's Correlation Coefficient (r):
         self.pearsons_r_asc = scipy.stats.pearsonr(spectrum[self.start_bin_index:self.peak_bin_index + 1], asc_linspace)
-        self.pearsons_r_desc = scipy.stats.pearsonr(spectrum[self.peak_bin_index:self.stop_bin_index + 1], asc_linspace)
+        self.pearsons_r_desc = scipy.stats.pearsonr(spectrum[self.peak_bin_index:self.stop_bin_index + 1], desc_linspace)
         return self.pearsons_r_avg
 
     # Output when print() is run on the descriptor:
@@ -165,6 +171,18 @@ class TriangleDescriptor:
 
     def __get__(self):
         return self.start_wl, self.peak_wl, self.stop_wl
+
+class descriptor_set:
+    def __init__(self, descriptor: TriangleDescriptor, material: str):
+        self.descriptors = list(descriptor)
+        self.material = material
+
+    def add_descriptor(self, descriptor: ):
+        self.descriptors.append(_D)
+
+    def show_materials(self):
+        for _D in self.descriptors:
+            print(_D.material_name)
 
 
 def pearson_corr_coeff(descriptors, samples):

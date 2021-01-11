@@ -36,6 +36,7 @@ mask = HSI.BinaryMask(fname_mask, 'In')
 # plt.imshow(img_rgb)
 # plt.show()
 
+# Grab one spectrum
 leaf = hdr[1653, 929, :]
 print(type(leaf))
 leaf = HSI.unfold_cube(leaf)
@@ -43,3 +44,11 @@ print(type(leaf))
 print(leaf.shape)
 spct_leaf = HSI.Spectra(leaf, wlv)
 spct_leaf.plot()
+
+a = HSI.TriangleDescriptor(133, 160, 201, 'Test')
+b = a
+print(b)
+
+
+
+print('EOF')
