@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations  # F. Spectra class w/ type hint in method .add_spectra referring to own parent class
 import spectral
 import numpy as np
 import scipy.stats
@@ -41,8 +42,23 @@ def unfold_cube(cube):
     return spectra
 
 
-def find_peaks(spectrum: np.array, wlv: np.array):
-    pass
+class BinaryMask:
+    """
+    Binary mask object with the following attributes:
+    .mask_2D        binary 2D array
+    .full_vector    unfolded mask (with 0 for out-, 1 for in-values)
+    .index_vector   unfolded mask vector containing indices for in-values
+    .material       Material string
+    """
+    def __init__(self, img_path: str, material: str):
+        _mask = plt.imread(img_path)[:, :, 0]
+        # Crank everything above 50% intensity up to 100%:
+        _mask = np.where(_mask > 0.5, 1, 0)
+        _x, _y = _mask.shape
+        self.mask_2D = _mask
+        self.full_vector = _mask.reshape((_x * _y))  # Unfold
+        self.index_vector = np.where(self.full_vector == 1)[0]  # Locate only "in" values
+        self.material = material
 
 
 class Spectra:
@@ -62,7 +78,15 @@ class Spectra:
         subset_index = random.choices(range(self.intensities.shape[0]), k=n)
         return Spectra(self.intensities[subset_index], self.wlv, self.material_column)
 
-    def export_npz(self, savename):
+    def add_spectra(self, spectra: Spectra):
+        if not np.alltrue(self.wlv == spectra.wlv):
+            raise Exception("Wavelength vectors are not the same.")
+        else:
+            self.intensities = np.vstack((self.intensities, spectra.intensities))
+        # ToDo: Account for the materials column
+
+
+    def export_to_npz(self, savename):
         np.savez(savename, self.intensities, self.wlv)
 
     def plot(self):
@@ -76,31 +100,23 @@ def random_spectrum(spectra):  # Can be replaced by "Spectra.random_subsample(n=
     pass
 
 
-class BinaryMask:
-    """
-    Binary mask object with the following attributes:
-    .mask_2D        binary 2D array
-    .full_vector    unfolded mask (with 0 for out-, 1 for in-values)
-    .index_vector   unfolded mask vector containing indices for in-values
-    .material       Material string
-    """
-    def __init__(self, img_path: str, material: str):
-        _mask = plt.imread(img_path)[:, :, 0]
-        # Crank everything above 50% intensity up to 100%:
-        _mask = np.where(_mask > 0.5, 1, 0)
-        _x, _y = _mask.shape
-        self.mask_2D = _mask
-        self.full_vector = _mask.reshape((_x * _y))  # Unfold
-        self.index_vector = np.where(self.full_vector == 1)[0]  # Locate only "in" values
-        self.material = material
-
 class MulticlassMask:
+    def __init__(self, masks: tuple, materials: tuple):
+        """Takes a tuple of binary masks and a tuple of materials and turns them into a multiclass masking vector."""
+        assert len(masks) == len(materials)
+        self.masks = masks
+        self.materials = materials
     # ToDo: Combine binary masks, material = mask fname.
     pass
 
 
 def mask_spectra(spectra: Spectra, mask: BinaryMask):
     pass
+
+
+def find_peaks(spectrum: np.array, wlv: np.array):
+    pass
+
 
 class Descriptor:
     """General descriptor class.
@@ -172,22 +188,18 @@ class TriangleDescriptor:
     def __get__(self):
         return self.start_wl, self.peak_wl, self.stop_wl
 
+
 class descriptor_set:
     def __init__(self, descriptor: TriangleDescriptor, material: str):
         self.descriptors = list(descriptor)
         self.material = material
 
-    def add_descriptor(self, descriptor: ):
-        self.descriptors.append(_D)
+    def add_descriptor(self, descriptor):
+        self.descriptors.append(descriptor)
 
     def show_materials(self):
         for _D in self.descriptors:
             print(_D.material_name)
-
-
-def pearson_corr_coeff(descriptors, samples):
-    # read wlv only once
-    pass
 
 
 class reference_spectra:

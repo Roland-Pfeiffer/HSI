@@ -23,32 +23,40 @@ import cv2
 # pearsons_r = scipy.stats.pearsonr(ls_long, s)
 # print(pearsons_r)
 
-fname = '/media/findux/DATA/HSI_Data/imec_sample data/sample_data_pills_and_leaf.hdr'
-fname_mask = '/media/findux/DATA/HSI_Data/imec_sample data/sample_data_pills_and_leaf_MASK.png'
+# fname = '/media/findux/DATA/HSI_Data/imec_sample data/sample_data_pills_and_leaf.hdr'
+# fname_mask = '/media/findux/DATA/HSI_Data/imec_sample data/sample_data_pills_and_leaf_MASK.png'
+# hdr = spectral.open_image(fname)
+# wlv = np.array(hdr.bands.centers)
+# print(type(wlv))
+# print(wlv.shape)
+# mask = HSI.BinaryMask(fname_mask, 'In')
+# # img_rgb = spectral.get_rgb(hdr)
+# # plt.imshow(img_rgb)
+# # plt.show()
 
-hdr = spectral.open_image(fname)
-wlv = np.array(hdr.bands.centers)
-print(type(wlv))
-print(wlv.shape)
-mask = HSI.BinaryMask(fname_mask, 'In')
+# # Grab one spectrum
+# leaf = hdr[1653, 929, :]
+# print(type(leaf))
+# leaf = HSI.unfold_cube(leaf)
+# print(type(leaf))
+# print(leaf.shape)
+# spct_leaf = HSI.Spectra(leaf, wlv)
+# spct_leaf.plot()
+# a = HSI.TriangleDescriptor(133, 160, 201, 'Test')
+# b = a
+# print(b)
 
-# img_rgb = spectral.get_rgb(hdr)
-# plt.imshow(img_rgb)
-# plt.show()
+# WLV comparison
+a = np.array([1, 2, 3, 4])
+b = np.array([1, 2, 3, 4])
+print(np.alltrue(a == b))
 
-# Grab one spectrum
-leaf = hdr[1653, 929, :]
-print(type(leaf))
-leaf = HSI.unfold_cube(leaf)
-print(type(leaf))
-print(leaf.shape)
-spct_leaf = HSI.Spectra(leaf, wlv)
-spct_leaf.plot()
-
-a = HSI.TriangleDescriptor(133, 160, 201, 'Test')
-b = a
-print(b)
-
-
+# Vertcat of np.arrays
+a = np.array([[[1, 2, 3],
+               [4, 5, 6]]])
+b = np.array([[[7, 8, 9],
+               [10, 11, 12]]])
+c = np.vstack((a, b))
+print(c)
 
 print('EOF')
