@@ -19,16 +19,28 @@ from typing import Union  # So multiple types can be specified in function annot
 
 
 def load_hsi(fpath: str) -> 'hdr, img, wlv':
-    """hdr, img, wlv = load_hsi(fpath)\n\n
+    """spectra = load_hsi(fpath)\n\n
     Takes path to a header (.hdr) hsi file and returns header file, hypercube array and wavelength vector (WLV)
     (aka wavenumbers). WLV is retrieved from the centers of bands.
+    To load just one pixel's spectrum, use load_pixel().
     :rtype: .hdr, np.array, np.array
     """
     hdr = spectral.open_image(fpath)
     img_cube = hdr.load()
     wlv = np.array(hdr.bands.centers)
-    spct = Spectra(unfold_cube(img_cube), wlv)
-    return spct
+    # spct = Spectra(unfold_cube(img_cube), wlv)
+    return hdr, img_cube, wlv
+
+
+def load_pixel(hdr_fpath: str, row, col, material: str = None) -> 'spectrum: Spectra':
+    """spectrum, wlv = load_pixel(fpath, row, col)
+    Reads the spectrum of given pixel and outputs a spectrum object.
+    """
+    hdr = spectral.open_image(hdr_fpath)
+    spec = hdr.read_pixel(row, col)
+    wlv = hdr.bands.centers
+    out = Spectra(spec, wlv, material)
+    return out
 
 
 def unfold_cube(cube):
