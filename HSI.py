@@ -3,8 +3,8 @@ from __future__ import annotations  # F. Spectra class w/ type hint in method .a
 import spectral
 import numpy as np
 import scipy.stats
+from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
-import math
 import random
 from typing import Union  # So multiple types can be specified in function annotations
 
@@ -16,7 +16,6 @@ from typing import Union  # So multiple types can be specified in function annot
 # ToDo: Take into account peak prominence.
 
 # ToDo: normalisation, mean centering (in preprocessing function?)
-
 
 def load_hsi(fpath: str) -> 'hdr, img, wlv':
     """spectra = load_hsi(fpath)\n\n
@@ -39,13 +38,13 @@ def load_pixel(hdr_fpath: str, row, col, material: str = None) -> 'spectrum: Spe
     hdr = spectral.open_image(hdr_fpath)
     spec = hdr.read_pixel(row, col)
     wlv = hdr.bands.centers
-    out = Spectra(spec, wlv, material)
+    out = Spectra(spec, wlv, list(material))
     return out
 
 
 def unfold_cube(cube):
     """spectra = unfold_cube(cube)\n\n
-    Unfolds a hypercube of the dimensions (x, y, z) into a 2D array
+    Unfolds a hypercube of the dimensions (x, y, z) into a 2D numpy array
     of the dimensions (x * y, z) containing the spectra for each pixel.
     """
     _cubearray = np.array(cube)
@@ -82,6 +81,10 @@ class Spectra:
         self.material_column = material_column
 
     def random_subsample(self, n=250, seed: int = 42):
+        """
+        Returns a random subsample of the Spectra object.
+        Note that this does not work inplace, but needs to be assigned to a new var.
+        """
         # Account for n >= numbe of spectra:
         if n >= self.intensities.shape[0]:
             return Spectra(self.intensities, self.wlv)
@@ -95,8 +98,8 @@ class Spectra:
             raise Exception("Wavelength vectors are not the same.")
         else:
             self.intensities = np.vstack((self.intensities, spectra.intensities))
-        # ToDo: Account for the materials column
-
+            # Update material column
+            [self.material_column.append(material) for material in spectra.material_column]
 
     def export_to_npz(self, savename):
         np.savez(savename, self.intensities, self.wlv)

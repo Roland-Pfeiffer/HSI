@@ -46,17 +46,39 @@ import cv2
 # b = a
 # print(b)
 
-# WLV comparison
-a = np.array([1, 2, 3, 4])
-b = np.array([1, 2, 3, 4])
-print(np.alltrue(a == b))
+# # WLV comparison
+# a = np.array([1, 2, 3, 4])
+# b = np.array([1, 2, 3, 4])
+# print(np.alltrue(a == b))
+# # Vertcat of np.arrays
+# a = np.array([[[1, 2, 3],
+#                [4, 5, 6]]])
+# b = np.array([[[7, 8, 9],
+#                [10, 11, 12]]])
+# c = np.vstack((a, b))
+# print(c)
 
-# Vertcat of np.arrays
-a = np.array([[[1, 2, 3],
-               [4, 5, 6]]])
-b = np.array([[[7, 8, 9],
-               [10, 11, 12]]])
-c = np.vstack((a, b))
-print(c)
+a = np.array([[1, 2, 3, 4, 5, 6, 7],
+              [3, 5, 6, 7, 7, 2, 9],
+              [3, 4, 4, 4, 4, 4, 4]])
+
+lower_threshold = 3
+upper_threshold = 7
+
+out_of_range = (a < lower_threshold) | (a > upper_threshold)
+print(out_of_range)
+in_vec = [not np.any(s) for s in out_of_range]
+print(in_vec)
+
+
+# [print((s > 5) and (s < 9)) for s in a]
+# in_vec = [np.any(lower_threshold <= s and s <= upper_threshold) for s in a]
+# print(in_vec)
+
 
 print('EOF')
+
+d = np.gradient(a)[0]
+print(d)
+plt.plot(d.T)
+plt.show()
