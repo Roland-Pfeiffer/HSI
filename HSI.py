@@ -232,7 +232,9 @@ class TriangleDescriptor:
         logging.debug('Peasons r (ascending|descending): ({0}|{1})'.format(pearsons_r_asc, pearsons_r_desc))
 
         pearsons_r_avg = (pearsons_r_asc[0] + pearsons_r_desc[0]) / 2
-        return pearsons_r_avg, rel_peak_height
+        if pearsons_r_avg < 0.5: pearsons_r_avg = 0
+        out = pearsons_r_avg * rel_peak_height
+        return out
 
 
 
