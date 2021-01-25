@@ -111,6 +111,9 @@ class Spectra:
         plt.plot(x, y.T)
         plt.show()
 
+    def smoothen(self, window_size, polynomial: int, derivative: int = 0):
+        self.intensities = savgol_filter(self.intensities,window_size, polynomial, derivative)
+
 
 def random_spectrum(spectra):  # Can be replaced by "Spectra.random_subsample(n=1)
     pass
@@ -235,8 +238,6 @@ class TriangleDescriptor:
         if pearsons_r_avg < 0.5: pearsons_r_avg = 0
         out = pearsons_r_avg * rel_peak_height
         return out
-
-
 
     def plot(self):
         pass # ToDo: plot descriptor

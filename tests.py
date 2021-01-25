@@ -86,17 +86,3 @@ import cv2
 # print(intervals)
 # print(list(reversed(range(10))))
 
-import numpy as np
-import matplotlib.pyplot as plt
-
-a_intensities = np.array([[2, 4.2, 5.2, 5, 4, 5, 2.8], [5, 5.2, 5.5, 5.4, 5.3, 5.3, 3.7]])
-a_wlv = np.array([0, 1, 2, 3, 4, 5, 6])
-b_intensities = np.array([[1, 1.1, 1.7, 1.9, 1.8, 1.9, 1.2], [0.1, 0.7, 0.8, 0.6, 0.5, 0.45, 0.31]])
-b_wlv = np.array([-0.9, 0.1, 1.1, 2.1, 3.1, 4.1, 5.1])
-plt.figure('Spectra')
-plt.plot(a_wlv, a_intensities.T, 'bo-', color='blue')
-plt.grid()
-plt.plot(b_wlv, b_intensities.T, 'bo--', color='red')
-plt.xlabel('Wavelength')
-plt.ylabel('Intensity')
-plt.show()
