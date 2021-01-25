@@ -58,27 +58,45 @@ import cv2
 # c = np.vstack((a, b))
 # print(c)
 
-a = np.array([[1, 2, 3, 4, 5, 6, 7],
-              [3, 5, 6, 7, 7, 2, 9],
-              [3, 4, 4, 4, 4, 4, 4]])
-
-lower_threshold = 3
-upper_threshold = 7
-
-out_of_range = (a < lower_threshold) | (a > upper_threshold)
-print(out_of_range)
-in_vec = [not np.any(s) for s in out_of_range]
-print(in_vec)
-
+# a = np.array([[1, 2, 3, 4, 5, 6, 7],
+#               [3, 5, 6, 7, 7, 2, 9],
+#               [3, 4, 4, 4, 4, 4, 4]])
+# lower_threshold = 3
+# upper_threshold = 7
+# out_of_range = (a < lower_threshold) | (a > upper_threshold)
+# print(out_of_range)
+# in_vec = [not np.any(s) for s in out_of_range]
+# print(in_vec)
 
 # [print((s > 5) and (s < 9)) for s in a]
 # in_vec = [np.any(lower_threshold <= s and s <= upper_threshold) for s in a]
 # print(in_vec)
 
+# d = np.gradient(a)[0]
+# print(d)
+# plt.plot(d.T)
+# plt.show()
 
-print('EOF')
+# print(np.linspace(0, 1, 12))
+# print(list(range(1,4)))
 
-d = np.gradient(a)[0]
-print(d)
-plt.plot(d.T)
+# fname = '/media/findux/DATA/HSI_Data/imec_sample data/sample_data_pills_and_leaf.hdr'
+# hdr = spectral.open_image(fname)
+# intervals = hdr.bands.centers
+# print(intervals)
+# print(list(reversed(range(10))))
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+a_intensities = np.array([[2, 4.2, 5.2, 5, 4, 5, 2.8], [5, 5.2, 5.5, 5.4, 5.3, 5.3, 3.7]])
+a_wlv = np.array([0, 1, 2, 3, 4, 5, 6])
+b_intensities = np.array([[1, 1.1, 1.7, 1.9, 1.8, 1.9, 1.2], [0.1, 0.7, 0.8, 0.6, 0.5, 0.45, 0.31]])
+b_wlv = np.array([-0.9, 0.1, 1.1, 2.1, 3.1, 4.1, 5.1])
+plt.figure('Spectra')
+plt.plot(a_wlv, a_intensities.T, 'bo-', color='blue')
+plt.grid()
+plt.plot(b_wlv, b_intensities.T, 'bo--', color='red')
+plt.xlabel('Wavelength')
+plt.ylabel('Intensity')
 plt.show()

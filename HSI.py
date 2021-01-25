@@ -7,6 +7,7 @@ from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
 import random
 from typing import Union  # So multiple types can be specified in function annotations
+import logging
 
 
 # ToDo: Think about what to do when using different WLVs for different samples.
@@ -147,6 +148,7 @@ class TriangleDescriptor:
     Takes a start wavelength, peak wavelengths and stop wavelength, as well
     as a WavelengthVector object as input.
     """
+
     def __init__(self, wl_start: Union[int, float],
                  wl_peak: Union[int, float],
                  wl_stop: Union[int, float],
@@ -158,42 +160,84 @@ class TriangleDescriptor:
         # Wavelength attributes for start, peak and stop
         self.start_wl, self.peak_wl, self.stop_wl = wl_start, wl_peak, wl_stop
         # Initiate index attributes
-        self.start_bin_index, self.peak_bin_index, self.stop_bin_index = None, None, None
-        # Initiate Pearson Correlation Coefficients
-        self.pearsons_r_asc = None
-        self.pearsons_r_desc = None
-        self.pearsons_r_avg = None
+        start_bin_index, peak_bin_index, stop_bin_index = None, None, None
 
-    def compare_to_spectrum(self, spectrum, wlv: np.array):  # ToDo: Maybe separate this into its own function
-        """
+    def compare_to_spectrum(self, spectrum, wlv: np.array, region_divisor: int = 2):
+        """(avg_pearson_r, avg_r_multiplied_by_rel_peak_height) = TriangleDescriptor.compare_to_spectrum(spectrum, wlv, region_divisor)
         Takes a Spectrum as input and then compares how well it is matched by the descriptors.
-        ToDo: The actual comparison.
-        :param spectrum:
-        :param wlv:
-        :return:
+        Returns average pearson correlation as well as avg. correl. muliplied by relative peak height.
+        region_divisor: number of bins before and after peak will be divided by this. Is used as avg. region width.
+        ToDo: Perhaps use a Spectra class as input, making the second wlv parameter obsolete.
         """
         # Account for values outside of wlv range:
         assert min(wlv) < self.peak_wl < max(wlv)
-        if self.start_wl <= min(wlv): self.start_wl = min(wlv)
-        if self.stop_wl >= max(wlv): self.stop_wl = max(wlv)
+        if self.start_wl <= min(wlv):
+            self.start_wl = min(wlv)
+        if self.stop_wl >= max(wlv):
+            self.stop_wl = max(wlv)
 
         # Get bin indices
-        self.start_bin_index = np.argmin(np.abs(wlv - self.start_wl))
-        self.peak_bin_index = np.argmin(np.abs(wlv - self.start_wl))
-        self.stop_bin_index = np.argmin(np.abs(wlv - self.start_wl))
+        start_bin_index = np.argmin(np.abs(wlv - self.start_wl))
+        peak_bin_index = np.argmin(np.abs(wlv - self.peak_wl))
+        stop_bin_index = np.argmin(np.abs(wlv - self.stop_wl))
+        logging.debug('Index: (Start|Peak|Stop): ({0}|{1}|{2})'.format(start_bin_index,
+                                                                        peak_bin_index,
+                                                                        stop_bin_index))
 
-        # Create linspaces
-        before_peak = int(self.peak_bin_index - self.start_bin_index)
-        after_peak = int(self.stop_bin_index - self.peak_bin_index)
+        # Create linspaces (+1 because peak and stop bin are included)
+        before_peak = int(peak_bin_index - start_bin_index) + 1
+        after_peak = int(stop_bin_index - peak_bin_index) + 1
+
         asc_linspace = np.linspace(0, 1, before_peak)
         desc_linspace = np.linspace(1, 0, after_peak)
-        # print(asc_linspace)
-        # print(desc_linspace)
+
+        logging.debug('Before peak: {}'.format(before_peak))
+        logging.debug('First linspace: {}'.format(asc_linspace))
+        logging.debug('After peak: {}'.format(after_peak))
+        logging.debug('Second linspace: {}'.format(desc_linspace))
+
+        # Get peak height (avg. of peak region - avg. of start/stop region (depending which is lower))
+        # Make sure the descriptor is wide enough:
+        if before_peak // region_divisor < 1:
+            start_avg = spectrum[start_bin_index]
+        else:
+            start_avg = np.mean(spectrum[start_bin_index - (before_peak // region_divisor):
+                                         start_bin_index + (before_peak // region_divisor)])
+        if before_peak // region_divisor < 1 or after_peak // region_divisor < 1:
+            peak_avg = spectrum[peak_bin_index]
+        else:
+            peak_avg = np.mean(spectrum[peak_bin_index - (before_peak // region_divisor):
+                                        peak_bin_index + (after_peak // region_divisor)])
+        if after_peak // region_divisor < 1:
+            stop_avg = spectrum[stop_bin_index]
+        else:
+            stop_avg = np.mean(spectrum[stop_bin_index - (after_peak // region_divisor):
+                                        stop_bin_index + (after_peak // region_divisor)])
+
+        low = min([start_avg, stop_avg])
+        peak_height = peak_avg - low
+        rel_peak_height = (max(spectrum) - min(spectrum)) / peak_height
+        logging.debug('Peak height: {}'.format(peak_height))
+
 
         # Calculate Pearson's Correlation Coefficient (r):
-        self.pearsons_r_asc = scipy.stats.pearsonr(spectrum[self.start_bin_index:self.peak_bin_index + 1], asc_linspace)
-        self.pearsons_r_desc = scipy.stats.pearsonr(spectrum[self.peak_bin_index:self.stop_bin_index + 1], desc_linspace)
-        return self.pearsons_r_avg
+        pre_peak_intensities = spectrum[start_bin_index:peak_bin_index + 1]
+        post_peak_intensities = spectrum[peak_bin_index:stop_bin_index + 1]
+
+        logging.debug('Pre-peak intensities: {}'.format(pre_peak_intensities))
+        logging.debug('Post-peak intensities: {}'.format(post_peak_intensities))
+
+        pearsons_r_asc = scipy.stats.pearsonr(pre_peak_intensities, asc_linspace)
+        pearsons_r_desc = scipy.stats.pearsonr(post_peak_intensities, desc_linspace)
+        logging.debug('Peasons r (ascending|descending): ({0}|{1})'.format(pearsons_r_asc, pearsons_r_desc))
+
+        pearsons_r_avg = (pearsons_r_asc[0] + pearsons_r_desc[0]) / 2
+        return pearsons_r_avg, rel_peak_height
+
+
+
+    def plot(self):
+        pass # ToDo: plot descriptor
 
     # Output when print() is run on the descriptor:
     def __str__(self):

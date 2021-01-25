@@ -10,6 +10,7 @@ import math
 def load_spectra():
 
     fpath = '/media/findux/DATA/Code/SpectraProcessing_2020-12-09/Reference Spectra/'
+    fpath = '/media/findux/DATA/HSI_Data/reference_spectra_josef/'
     files = sorted(os.listdir(fpath))
     fpaths = [fpath + file for file in files]
     material_names = [name.split('.')[0] for name in files]
@@ -23,11 +24,10 @@ def load_spectra():
 
     wavelengths = np.loadtxt(fpaths[0], delimiter=';')[:, 0]
     # Create numpy array ignoring the second material
+    print('Second material ignored)')
     data = np.loadtxt(fpaths[0], delimiter=';')[:, 1]
     for file in fpaths[2:]:
         new_data = np.loadtxt(file, delimiter=';')[:, 1]
         data = np.vstack((data, new_data))
     data = data.T
     return data, wavelengths, material_names
-
-
