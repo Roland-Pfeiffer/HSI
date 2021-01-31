@@ -4,6 +4,7 @@ import spectral
 import numpy as np
 import scipy.stats
 from scipy.signal import savgol_filter
+import sklearn.utils
 import matplotlib.pyplot as plt
 import random
 from typing import Union  # So multiple types can be specified in function annotations
@@ -86,6 +87,7 @@ class Spectra:
         Returns a random subsample of the Spectra object.
         Note that this does not work inplace, but needs to be assigned to a new var.
         """
+        assert n > 0
         # Account for n >= numbe of spectra:
         if n >= self.intensities.shape[0]:
             return Spectra(self.intensities, self.wlv)
@@ -143,6 +145,7 @@ class Descriptor:
     """
     def __init__(self, mat=None):
         self.material = mat
+    # ToDo: add start/stop and offer calculating descriptor integral.
 
 class TriangleDescriptor(Descriptor):
     """Takes a start wavelength, peak wavelengths and stop wavelength, and material  as input.
@@ -166,8 +169,9 @@ class TriangleDescriptor(Descriptor):
         Takes a Spectrum as input and then compares how well it is matched by the descriptors.
         Returns average pearson correlation as well as avg. correl. muliplied by relative peak height.
         region_divisor: number of bins before and after peak will be divided by this. Is used as avg. region width.
-        ToDo: Perhaps use a Spectra class as input, making the second wlv parameter obsolete.
-        ToDo: Change region divisor to region width or something more relatable
+        ToDo:   Perhaps use a Spectra class as input, making the second wlv parameter obsolete. However, now it's more
+                accessible.
+        ToDo:   Change region divisor to region width or something more relatable
         """
         # Account for values outside of wlv range:
         assert min(wlv) < self.peak_wl < max(wlv)
@@ -242,13 +246,12 @@ class TriangleDescriptor(Descriptor):
     def plot(self):
         print('Still to be done...')
 
-
     def show(self):
         print('TriangleDescriptor:\t(Start: {0} | Peak: {1} | Stop: {2}'.format(self.start_wl, self.peak_wl, self.stop_wl))
 
     # Output when print() is run on the descriptor:
     def __str__(self):
-        return 'TriangleDescriptor'
+        return 'TriangleDescriptor:\t(Start: {0} | Peak: {1} | Stop: {2}'.format(self.start_wl, self.peak_wl, self.stop_wl)
 
 
 class descriptor_set:
