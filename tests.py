@@ -86,3 +86,6 @@ import cv2
 # print(intervals)
 # print(list(reversed(range(10))))
 
+a = 'AAAAaaAAAaaaAA'
+print(a.lower())
+

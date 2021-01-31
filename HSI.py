@@ -96,7 +96,7 @@ class Spectra:
 
     def add_spectra(self, spectra: Spectra):
         if not np.alltrue(self.wlv == spectra.wlv):
-            raise Exception("Wavelength vectors are not the same.")
+            raise Exception("Wavelength vectors are not the same.\nSpectra not merged.")
         else:
             self.intensities = np.vstack((self.intensities, spectra.intensities))
             # Update material column
@@ -138,30 +138,26 @@ def find_peaks(spectrum: np.array, wlv: np.array):
 
 
 class Descriptor:
-    """General descriptor class.
-    TriangleDescriptor classes etc. inherit from this.
-    Buuuut: what is there to inherit?
+    """General descriptor class. Makes sure they all have a .material attribute.
+    All descriptors (triangles, etc.) inherit from this.
     """
-    def __init__(self):
-        pass  # ToDo. This
+    def __init__(self, mat=None):
+        self.material = mat
 
-class TriangleDescriptor:
-    """ToDo: Break this up.
-
-    Takes a start wavelength, peak wavelengths and stop wavelength, as well
-    as a WavelengthVector object as input.
+class TriangleDescriptor(Descriptor):
+    """Takes a start wavelength, peak wavelengths and stop wavelength, and material  as input.
     """
-
-    def __init__(self, wl_start: Union[int, float],
-                 wl_peak: Union[int, float],
-                 wl_stop: Union[int, float],
-                 material_name: str = 'Material'):
-        self.material_name = material_name
-        # Wavelength values validation
+    def __init__(self, wl_start: Union[int, float], wl_peak: Union[int, float], wl_stop: Union[int, float],
+                 material: str = 'Material'):
+        # Input validation
         if not wl_start < wl_peak < wl_stop:
-            raise ValueError('Invalid wavelengths input.\nAre they float or int?\nAre they in order START, PEAK, STOP?')
+            raise ValueError('Invalid start, peak and stop input. Need to be numerical and start < peak < stop.')
+
+        super().__init__(material)
+        self.start_wl = wl_start
+        self.peak_wl = wl_peak
+        self.stop_wl = wl_stop
         # Wavelength attributes for start, peak and stop
-        self.start_wl, self.peak_wl, self.stop_wl = wl_start, wl_peak, wl_stop
         # Initiate index attributes
         start_bin_index, peak_bin_index, stop_bin_index = None, None, None
 
@@ -171,6 +167,7 @@ class TriangleDescriptor:
         Returns average pearson correlation as well as avg. correl. muliplied by relative peak height.
         region_divisor: number of bins before and after peak will be divided by this. Is used as avg. region width.
         ToDo: Perhaps use a Spectra class as input, making the second wlv parameter obsolete.
+        ToDo: Change region divisor to region width or something more relatable
         """
         # Account for values outside of wlv range:
         assert min(wlv) < self.peak_wl < max(wlv)
@@ -235,33 +232,38 @@ class TriangleDescriptor:
         logging.debug('Peasons r (ascending|descending): ({0}|{1})'.format(pearsons_r_asc, pearsons_r_desc))
 
         pearsons_r_avg = (pearsons_r_asc[0] + pearsons_r_desc[0]) / 2
-        if pearsons_r_avg < 0.5: pearsons_r_avg = 0
-        out = pearsons_r_avg * rel_peak_height
+        # "Deactivate" everything below 0.5:
+        if pearsons_r_avg >= 0.5:
+            out = pearsons_r_avg * rel_peak_height
+        else:
+            out = 0
         return out
 
     def plot(self):
-        pass # ToDo: plot descriptor
+        print('Still to be done...')
+
+
+    def show(self):
+        print('TriangleDescriptor:\t(Start: {0} | Peak: {1} | Stop: {2}'.format(self.start_wl, self.peak_wl, self.stop_wl))
 
     # Output when print() is run on the descriptor:
     def __str__(self):
-        return 'HSI.TriangleDescriptor: {0} (start, peak, stop)'\
-            .format((self.start_wl, self.peak_wl, self.stop_wl))
-
-    def __get__(self):
-        return self.start_wl, self.peak_wl, self.stop_wl
+        return 'TriangleDescriptor'
 
 
 class descriptor_set:
-    def __init__(self, descriptor: TriangleDescriptor, material: str):
-        self.descriptors = list(descriptor)
-        self.material = material
+    def __init__(self, descriptor):
+        self.descriptors = [descriptor]
+        self.material = descriptor.material
 
     def add_descriptor(self, descriptor):
+        if not self.material.lower() == descriptor.material.lower():
+            raise IOError('Material are not the same.')
         self.descriptors.append(descriptor)
 
     def show_materials(self):
         for _D in self.descriptors:
-            print(_D.material_name)
+            print(_D.material)
 
 
 class reference_spectra:
