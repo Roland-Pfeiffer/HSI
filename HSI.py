@@ -247,14 +247,16 @@ class TriangleDescriptor(Descriptor):
         print('Still to be done...')
 
     def show(self):
-        print('TriangleDescriptor:\t(Start: {0} | Peak: {1} | Stop: {2}'.format(self.start_wl, self.peak_wl, self.stop_wl))
+        return 'TriangleDescriptor:\t(Start: {0} | Peak: {1} | Stop: {2}. Material: {3})'.\
+            format(self.start_wl, self.peak_wl, self.stop_wl, self.material)
 
     # Output when print() is run on the descriptor:
     def __str__(self):
-        return 'TriangleDescriptor:\t(Start: {0} | Peak: {1} | Stop: {2}'.format(self.start_wl, self.peak_wl, self.stop_wl)
+        return 'TriangleDescriptor:\t(Start: {0} | Peak: {1} | Stop: {2}. Material: {3})'.\
+            format(self.start_wl, self.peak_wl, self.stop_wl, self.material)
 
 
-class descriptor_set:
+class DescriptorSet:
     def __init__(self, descriptor):
         self.descriptors = [descriptor]
         self.material = descriptor.material
@@ -268,7 +270,13 @@ class descriptor_set:
         for _D in self.descriptors:
             print(_D.material)
 
+    def __str__(self):
+        _out = ''
+        for i in range(len(self.descriptors)):
+            _out += str(self.descriptors[i]) + '\n'  # str(object) returns what the object gives when print()-ed
+        return _out
 
-class reference_spectra:
+
+class ReferenceSpectra:
     def __init__(self):
         pass

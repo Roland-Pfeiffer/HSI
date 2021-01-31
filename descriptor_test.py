@@ -20,7 +20,7 @@ plt.show()
 d1 = HSI.TriangleDescriptor(2792, 2983, 3143, 'test')
 d2 = HSI.TriangleDescriptor(1609, 1745, 1801, 'Test')
 
-set = HSI.descriptor_set(d1)
+set = HSI.DescriptorSet(d1)
 set.add_descriptor(d2)
 
 print(set)
