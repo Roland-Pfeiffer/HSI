@@ -86,6 +86,9 @@ import cv2
 # print(intervals)
 # print(list(reversed(range(10))))
 
-a = 'AAAAaaAAAaaaAA'
-print(a.lower())
+# k = np.empty(4)
+# a = np.vstack((k, [1, 2, 3, 4]))
+# print(len(a))
 
+a = dict(zip(range(10), ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']))
+print(a)

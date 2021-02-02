@@ -4,7 +4,7 @@ import spectral
 import numpy as np
 import scipy.stats
 from scipy.signal import savgol_filter
-import sklearn.utils
+import pandas as pd
 import matplotlib.pyplot as plt
 import random
 from typing import Union  # So multiple types can be specified in function annotations
@@ -66,12 +66,20 @@ class BinaryMask:
     def __init__(self, img_path: str, material: str):
         _mask = plt.imread(img_path)[:, :, 0]
         # Crank everything above 50% intensity up to 100%:
-        _mask = np.where(_mask > 0.5, 1, 0)
+        _mask = np.where(_mask > 0.5, 1, 0)  # = where mask>0.5 return 1, else 0.
         _x, _y = _mask.shape
         self.mask_2D = _mask
         self.full_vector = _mask.reshape((_x * _y))  # Unfold
         self.index_vector = np.where(self.full_vector == 1)[0]  # Locate only "in" values
         self.material = material
+
+
+def load_and_unfold(hdr_path, mask = None, material = None):
+    _hdr, _cube, _path = load_hsi(hdr_path)
+
+
+def points_within_wlv(points: iter(), wlv:np.ndarray):
+    return min(points) >= min(wlv) and max(points) <= max(wlv)
 
 
 class Spectra:
@@ -184,9 +192,7 @@ class TriangleDescriptor(Descriptor):
         start_bin_index = np.argmin(np.abs(wlv - self.start_wl))
         peak_bin_index = np.argmin(np.abs(wlv - self.peak_wl))
         stop_bin_index = np.argmin(np.abs(wlv - self.stop_wl))
-        logging.debug('Index: (Start|Peak|Stop): ({0}|{1}|{2})'.format(start_bin_index,
-                                                                        peak_bin_index,
-                                                                        stop_bin_index))
+        logging.debug('Index: (Start|Peak|Stop): ({0}|{1}|{2})'.format(start_bin_index, peak_bin_index, stop_bin_index))
 
         # Create linspaces (+1 because peak and stop bin are included)
         before_peak = int(peak_bin_index - start_bin_index) + 1
@@ -220,8 +226,9 @@ class TriangleDescriptor(Descriptor):
 
         low = min([start_avg, stop_avg])
         peak_height = peak_avg - low
-        rel_peak_height = (max(spectrum) - min(spectrum)) / peak_height
+        rel_peak_height = peak_height / (max(spectrum) - min(spectrum))
         logging.debug('Peak height: {}'.format(peak_height))
+        logging.debug('Relative peak height: {}'.format(rel_peak_height))
 
 
         # Calculate Pearson's Correlation Coefficient (r):
@@ -275,6 +282,20 @@ class DescriptorSet:
         for i in range(len(self.descriptors)):
             _out += str(self.descriptors[i]) + '\n'  # str(object) returns what the object gives when print()-ed
         return _out
+
+    def correlate(self, spectra: np.array, wlv: np.array, region_divisor = 2):
+        """Note that the correlation matrix includes values that have been """
+        descriptor_count = len(self.descriptors)
+        spectra_count = len(spectra)
+        corr_mat = np.zeros((spectra_count, descriptor_count))
+        for spec in range(spectra_count):
+            for desc in range(descriptor_count):
+                corr_mat[spec, desc] = self.descriptors[desc].compare_to_spectrum(spectra[spec], wlv, region_divisor)
+        names = [self.descriptors[i].material + str(i) for i in range(descriptor_count)]
+        data_out = pd.DataFrame(corr_mat)
+        rename_dict = dict(zip(range(descriptor_count), names))
+        data_out.rename(columns=rename_dict, inplace=True)
+        return data_out
 
 
 class ReferenceSpectra:
