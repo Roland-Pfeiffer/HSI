@@ -144,9 +144,6 @@ class Spectra:
         self.intensities = savgol_filter(self.intensities,window_size, polynomial, derivative)
 
 
-def random_spectrum(spectra):  # Can be replaced by "Spectra.random_subsample(n=1)
-    pass
-
 
 class MulticlassMask:
     def __init__(self, masks: tuple, materials: tuple):

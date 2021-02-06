@@ -1,4 +1,4 @@
-# import HSI
+import HSI
 # import numpy as np
 # from scipy.signal import find_peaks, peak_prominences, peak_widths, savgol_filter
 # import scipy.stats
@@ -93,4 +93,4 @@ import load_sample_spectra
 # a = dict(zip(range(10), ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']))
 # print(a)
 
-load_sample_spectra.cleanup('/media/findux/DATA/Code/SpectraProcessing_2021-02-06/Reference_Spectra/')
+a = load_sample_spectra.load_samples_in_set('/media/findux/DATA/Code/SpectraProcessing_2021-02-06/Reference_Spectra/')

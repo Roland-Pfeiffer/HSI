@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import matplotlib.pyplot as plt
+import pandas as pd
 import logging
 
 def get_files(fpath):
@@ -47,21 +48,16 @@ def cleanup(fpath):
             write.writelines(lines)
 
 
-def load_spectra(fpath: str(), plot=False):
+def load_samples_in_set(fpath):
+    samples = []
     fpaths, files = get_files(fpath)
-    material_names = [name.split('.')[0] for name in files]
-    wavelengths = np.loadtxt(fpaths[0], delimiter=';')[:, 0]
-    # Create numpy array ignoring the second material
-    data = np.loadtxt(fpaths[0], delimiter=';')[:, 1]
-    logging.debug(data)
-    for file in fpaths[1:]:
-        new_data = np.loadtxt(file, delimiter=';')[:, 1]
-        data = np.vstack((data, new_data))
-        logging.debug(data)
-    if plot:
-        plt.figure('Sample spectra')
-        for i in range(data.shape[0]):
-            plt.plot(wavelengths, data[i].T, label=material_names[i])
-            plt.legend()
-        plt.show()
-    return data, wavelengths, material_names
+    for path in fpaths:
+        file = pd.read_csv(path, delimiter=',|;', engine='python')  # python engine allows two separators with "or" (|)
+        file = np.array(file)
+        WLV = file[:, 0]
+        intensities = file[:, 1]
+        name = os.path.split(path)[1].split('.')[0]
+        print('Reading ' + name)
+        mat_col = [name for i in range(intensities.shape[0])]
+        samples.append(HSI.Spectra(intensities, WLV,mat_col))
+    return samples
