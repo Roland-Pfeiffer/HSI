@@ -1,11 +1,11 @@
 import HSI
-# import numpy as np
+import numpy as np
 # from scipy.signal import find_peaks, peak_prominences, peak_widths, savgol_filter
 # import scipy.stats
 # from sklearn import preprocessing
 # import spectral
 # from time import perf_counter as pfc
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 # from PIL import Image
 import load_sample_spectra
 # import random
@@ -93,4 +93,27 @@ import load_sample_spectra
 # a = dict(zip(range(10), ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']))
 # print(a)
 
-a = load_sample_spectra.load_samples_in_set('/media/findux/DATA/Code/SpectraProcessing_2021-02-06/Reference_Spectra/')
+# fpath = '/media/findux/DATA/Code/SpectraProcessing_2021-02-06/Reference_Spectra/'
+# a = load_sample_spectra.load_samples_in_set(fpath)
+# # plotting
+# for spec in a:
+#     plt.plot(spec.wlv, spec.intensities.T, label=spec.material_column[0])
+# plt.legend()
+# plt.show()
+
+# load_sample_spectra.check_compatibility(fpath)
+
+# test = np.array([0, 1, 2, 3, 4, 5])
+# set = np.array([[0, 1, 2.2, 3, 4, 5],
+#                 [0, 1, 2, 3],
+#                 [0, 1, 2, 3, 4, 5]])
+# print(np.any(np.all(np.isin(set, test, assume_unique=True), axis=1)))
+
+
+a = [1, 2, 3, 4, 5]
+print(a[0:])
+
+b = np.array([1, 2, 3, 4, 5, 6])
+c = np.array([3, 4, 5, 6, 6, 6, 6, 6])
+
+print(np.where(c == max(b)))

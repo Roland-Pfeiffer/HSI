@@ -56,22 +56,14 @@ def unfold_cube(cube):
     return spectra
 
 
-def align_wlv(a, b):
+def align_wlv(wlv_to_align, wlv_to_align_WITH):
     """Aligns WLV a with WLV b.
     Returns the aligned version of WLV a as a numpy array."""
-    if min(a) < min(b):
-        warnings.warn('wlv a begins with lower value(s) than reference wlv b.')
-    if max(a) > max(b):
-        warnings.warn('wlv b overhangs reference wlv b (max(a) > max(b)).')
-    out = np.zeros(len(a))
-    for i in range(len(a)):
-        index = np.argmin(abs(b - a[i]))
-        out[i] = b[index]
-    return out
-
-
-def align_wlv_fast(a, b):
-    return [b[np.argmin(abs(b - k))] for k in a]
+    if min(wlv_to_align) < min(wlv_to_align_WITH):
+        print('wlv a begins with lower value(s) than reference wlv b.')
+    if max(wlv_to_align) > max(wlv_to_align_WITH):
+        print('wlv a overhangs reference wlv b (max(a) > max(b)).')
+    return [wlv_to_align_WITH[np.argmin(abs(wlv_to_align_WITH - k))] for k in wlv_to_align]
 
 
 class BinaryMask:
@@ -143,6 +135,12 @@ class Spectra:
     def smoothen(self, window_size, polynomial: int, derivative: int = 0):
         self.intensities = savgol_filter(self.intensities,window_size, polynomial, derivative)
 
+    def verify(self):
+        """Returns True if wlv len fits the spectral dimension of the intensities matrix"""
+        if len(self.wlv) == self.intensities.shape[1]:
+            return True
+        else:
+            return False
 
 
 class MulticlassMask:
@@ -312,8 +310,3 @@ class DescriptorSet:
         rename_dict = dict(zip(range(descriptor_count), names))
         data_out.rename(columns=rename_dict, inplace=True)
         return data_out
-
-
-class ReferenceSpectra:
-    def __init__(self):
-        pass

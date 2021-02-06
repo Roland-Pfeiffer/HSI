@@ -40,24 +40,43 @@ def cleanup(fpath):
         # Comma-separated regex: decimal . decimals e+ 2decimals, possible minus (and then the same again)
         pattern = re.compile(r'[-]?\d\.\d+[e][+-]\d\d[,][-]?\d\.\d+[e][+-]\d\d')
         matched = pattern.search(lines[0])
-        print(matched)
+
+        # Fix delimiters
         if not matched == None:
             lines = [line.replace(',', ';') for line in lines]
+
+        # Fix decimals
         lines = [line.replace(',', '.') for line in lines]
+
         with open(fpaths[i], 'w') as write:
             write.writelines(lines)
-
 
 def load_samples_in_set(fpath):
     samples = []
     fpaths, files = get_files(fpath)
+    print('Loading {0} files...'.format(len(files)))
     for path in fpaths:
         file = pd.read_csv(path, delimiter=',|;', engine='python')  # python engine allows two separators with "or" (|)
         file = np.array(file)
         WLV = file[:, 0]
         intensities = file[:, 1]
         name = os.path.split(path)[1].split('.')[0]
-        print('Reading ' + name)
         mat_col = [name for i in range(intensities.shape[0])]
-        samples.append(HSI.Spectra(intensities, WLV,mat_col))
+        samples.append(HSI.Spectra(intensities, WLV, mat_col))
     return samples
+
+def check_compatibility(fpath):
+    set = load_samples_in_set(fpath)
+    wlv_specs = []
+    for spec in set:
+        current = (len(spec.wlv), min(spec.wlv), max(spec.wlv))
+        if current not in wlv_specs:
+            wlv_specs.append(current)
+    if len(wlv_specs) == 1:
+        print('All WLVs have the same specs (len, m9in, max): {}'.format(wlv_specs[0]))
+    else:
+        print('WLV lengths differ (len, min, max):')
+        [print('Len: {0} | Min: {1} | Max: {2} | Avg. bin size: {3}'
+               .format(i[0], i[1], i[2], ((i[2] - i[1]) / i[0]))) for i in wlv_specs]
+
+    print('{0} unique WLVs detected.'.format(len(wlv_specs)))
