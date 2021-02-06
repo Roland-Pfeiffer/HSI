@@ -1,15 +1,15 @@
-import HSI
-import numpy as np
-from scipy.signal import find_peaks, peak_prominences, peak_widths, savgol_filter
-import scipy.stats
-from sklearn import preprocessing
-import spectral
-from time import perf_counter as pfc
-import matplotlib.pyplot as plt
-from PIL import Image
+# import HSI
+# import numpy as np
+# from scipy.signal import find_peaks, peak_prominences, peak_widths, savgol_filter
+# import scipy.stats
+# from sklearn import preprocessing
+# import spectral
+# from time import perf_counter as pfc
+# import matplotlib.pyplot as plt
+# from PIL import Image
 import load_sample_spectra
-import random
-import cv2
+# import random
+# import cv2
 
 # # Pearson tests
 # # Creating linspaces
@@ -90,5 +90,7 @@ import cv2
 # a = np.vstack((k, [1, 2, 3, 4]))
 # print(len(a))
 
-a = dict(zip(range(10), ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']))
-print(a)
+# a = dict(zip(range(10), ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']))
+# print(a)
+
+load_sample_spectra.cleanup('/media/findux/DATA/Code/SpectraProcessing_2021-02-06/Reference_Spectra/')

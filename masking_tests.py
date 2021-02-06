@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""NOTE: This uses a custom, edited version of the .hdr file. It normally does not contain coordinates.
+This was just a test to see if anything breaks when the file is changed and its length changes."""
 
 import spectral
 

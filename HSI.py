@@ -8,6 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import random
 from typing import Union  # So multiple types can be specified in function annotations
+import warnings
 import logging
 
 
@@ -53,6 +54,24 @@ def unfold_cube(cube):
     _x, _y, _spec = _cubearray.shape
     spectra = _cubearray.reshape((_x * _y, _spec))
     return spectra
+
+
+def align_wlv(a, b):
+    """Aligns WLV a with WLV b.
+    Returns the aligned version of WLV a as a numpy array."""
+    if min(a) < min(b):
+        warnings.warn('wlv a begins with lower value(s) than reference wlv b.')
+    if max(a) > max(b):
+        warnings.warn('wlv b overhangs reference wlv b (max(a) > max(b)).')
+    out = np.zeros(len(a))
+    for i in range(len(a)):
+        index = np.argmin(abs(b - a[i]))
+        out[i] = b[index]
+    return out
+
+
+def align_wlv_fast(a, b):
+    return [b[np.argmin(abs(b - k))] for k in a]
 
 
 class BinaryMask:

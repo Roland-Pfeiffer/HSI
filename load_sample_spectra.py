@@ -2,30 +2,54 @@
 import HSI
 import numpy as np
 import os
+import re
+import shutil
 import matplotlib.pyplot as plt
 import logging
 
-def load_spectra(plot=False, verbose=False):
-
-    fpath = '/media/findux/DATA/HSI_Data/reference_spectra_josef/'
+def get_files(fpath):
     files = sorted(os.listdir(fpath))
+    if 'BACKUPS' in files:
+        files.remove('BACKUPS')
     fpaths = [fpath + file for file in files]
+    return fpaths, files
+
+def show_struct(fpath):
+    fpaths, files = get_files(fpath)
+    for path in fpaths:
+        with open(path) as f:
+            pst = os.path.split(path)
+            print(f.readlines()[2].strip(), pst[-1])
+
+def cleanup(fpath):
+    """Turns comma-seperated into """
+    fpaths, files = get_files(fpath)
+    # Create backups
+    if not os.path.isdir(fpath + '/BACKUPS'):
+        print('Creating backups.')
+        os.mkdir(fpath + '/BACKUPS')
+        for path in fpaths:
+            shutil.copy(path, os.path.split(path)[0] + '/BACKUPS/' + os.path.split(path)[1])
+    else:
+        print('Backups already found.')
+    # Correct data
+    for i in range(len(fpaths)):
+        with open(fpaths[i], 'r') as read:
+            lines = read.readlines()
+        # Comma-separated regex: decimal . decimals e+ 2decimals, possible minus (and then the same again)
+        pattern = re.compile(r'[-]?\d\.\d+[e][+-]\d\d[,][-]?\d\.\d+[e][+-]\d\d')
+        matched = pattern.search(lines[0])
+        print(matched)
+        if not matched == None:
+            lines = [line.replace(',', ';') for line in lines]
+        lines = [line.replace(',', '.') for line in lines]
+        with open(fpaths[i], 'w') as write:
+            write.writelines(lines)
+
+
+def load_spectra(fpath: str(), plot=False):
+    fpaths, files = get_files(fpath)
     material_names = [name.split('.')[0] for name in files]
-
-    if verbose:
-        print('Shapes:')
-        [print(np.loadtxt(file, delimiter=';').shape) for file in fpaths]
-        print('Wavelength range limits:')
-        for i, file in enumerate(fpaths):
-            array = np.loadtxt(file, delimiter=';')
-            array = array.round(4)
-            print(material_names[i].ljust(6), min(array[:, 0]), max(array[:, 0]), '\tLength:', array.shape[0])
-
-        print('Dropping PE.')
-    PE_i = material_names.index('PE')
-    del material_names[PE_i]
-    del fpaths[PE_i]
-
     wavelengths = np.loadtxt(fpaths[0], delimiter=';')[:, 0]
     # Create numpy array ignoring the second material
     data = np.loadtxt(fpaths[0], delimiter=';')[:, 1]
@@ -34,10 +58,6 @@ def load_spectra(plot=False, verbose=False):
         new_data = np.loadtxt(file, delimiter=';')[:, 1]
         data = np.vstack((data, new_data))
         logging.debug(data)
-
-    data_dict = dict(zip(material_names, data.T))
-    if verbose:
-        print(data_dict)
     if plot:
         plt.figure('Sample spectra')
         for i in range(data.shape[0]):
