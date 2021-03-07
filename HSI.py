@@ -13,8 +13,8 @@ import logging
 
 
 # ToDo: Think about what to do when using different WLVs for different samples.
-#       would dictionaries be too slow?
 #       This is actually the case with Josef's reference spectra.
+#       would dictionaries be too slow?
 
 # ToDo: Take into account peak prominence.
 
@@ -59,11 +59,22 @@ def unfold_cube(cube):
 def align_wlv(wlv_to_align, wlv_to_align_WITH):
     """Aligns WLV a with WLV b.
     Returns the aligned version of WLV a as a numpy array."""
+    # ToDo: Also produce an error estimate between the WLVs
+    # Left overhang
     if min(wlv_to_align) < min(wlv_to_align_WITH):
-        print('wlv a begins with lower value(s) than reference wlv b.')
+        print('wlv {0} begins with lower value(s) than reference wlv {1}.'.format(wlv_to_align, wlv_to_align_WITH))
+        print('NOTE: min(wlv_to_align) < min(wlv_to_align_WITH),\n'
+              'First wlv overhangs reference wlv on the lower end.\n'
+              f'{wlv_to_align}\n{wlv_to_align_WITH}\n'
+              'Overhanging areas will be filled with min() of reference vector.')
+    # Right overhang
     if max(wlv_to_align) > max(wlv_to_align_WITH):
-        print('wlv a overhangs reference wlv b (max(a) > max(b)).')
-    return [wlv_to_align_WITH[np.argmin(abs(wlv_to_align_WITH - k))] for k in wlv_to_align]
+        print('NOTE: max(wlv_to_align) > max(wlv_to_align_WITH),\n'
+              'First wlv overhangs reference wlv on the upper end.\n'
+              f'{wlv_to_align}\n{wlv_to_align_WITH}\n'
+              'Overhanging areas will be filled with max() of reference vector.')
+    aligned_wlv = [wlv_to_align_WITH[np.argmin(abs(wlv_to_align_WITH - k))] for k in wlv_to_align]
+    return aligned_wlv
 
 
 class BinaryMask:
@@ -99,7 +110,7 @@ class Spectra:
     def __init__(self, intensities: np.array, wlv: np.array, material_column: list = None):
         self.wlv = wlv
         self.intensities = intensities
-        self.material_column = material_column
+        self.material_column = [material_column]
 
     def random_subsample(self, n=250, seed: int = 42):
         """
@@ -117,7 +128,8 @@ class Spectra:
 
     def add_spectra(self, spectra: Spectra):
         if not np.alltrue(self.wlv == spectra.wlv):
-            raise Exception("Wavelength vectors are not the same.\nSpectra not merged.")
+            raise Exception('WLVs not identical.\nSpectra not merged.')
+            # ToDo: Maybe just note that it was skipped so it doesn't break the code
         else:
             self.intensities = np.vstack((self.intensities, spectra.intensities))
             # Update material column
@@ -127,10 +139,11 @@ class Spectra:
         np.savez(savename, self.intensities, self.wlv)
 
     def plot(self):
+        # ToDo: add a material legend.
+        # ToDo: (in the same vein) add a group-my-material option
         x = self.wlv
         y = self.intensities
         plt.plot(x, y.T)
-        plt.show()
 
     def smoothen(self, window_size, polynomial: int, derivative: int = 0):
         self.intensities = savgol_filter(self.intensities,window_size, polynomial, derivative)
@@ -225,18 +238,24 @@ class TriangleDescriptor(Descriptor):
         if before_peak // region_divisor < 1:
             start_avg = spectrum[start_bin_index]
         else:
-            start_avg = np.mean(spectrum[start_bin_index - (before_peak // region_divisor):
-                                         start_bin_index + (before_peak // region_divisor)])
+            logging.debug(f'Spectrum: {spectrum}')
+            buffer = before_peak // region_divisor
+            logging.debug(f'Buffer: {buffer}')
+            in_values = spectrum[(start_bin_index - buffer):(start_bin_index + buffer)]
+            logging.debug(in_values)
+            start_avg = np.mean(spectrum[(start_bin_index - buffer):(start_bin_index + buffer)])
+
         if before_peak // region_divisor < 1 or after_peak // region_divisor < 1:
             peak_avg = spectrum[peak_bin_index]
         else:
             peak_avg = np.mean(spectrum[peak_bin_index - (before_peak // region_divisor):
                                         peak_bin_index + (after_peak // region_divisor)])
+
         if after_peak // region_divisor < 1:
             stop_avg = spectrum[stop_bin_index]
         else:
-            stop_avg = np.mean(spectrum[stop_bin_index - (after_peak // region_divisor):
-                                        stop_bin_index + (after_peak // region_divisor)])
+            buffer = after_peak // region_divisor
+            stop_avg = np.mean(spectrum[(stop_bin_index - buffer):(stop_bin_index + buffer)])
 
         low = min([start_avg, stop_avg])
         peak_height = peak_avg - low
@@ -298,14 +317,20 @@ class DescriptorSet:
         return _out
 
     def correlate(self, spectra: np.array, wlv: np.array, region_divisor = 2):
-        """Note that the correlation matrix includes values that have been """
+        """Note that the correlation matrix includes values that have been .... [and I never finished the sentence]
+        ..... cut off or merged if they were outside of the WLV range?"""
         descriptor_count = len(self.descriptors)
-        spectra_count = len(spectra)
+
+        # Avoid dimension confusions: Force spectra to be 2D array (using ndmin=2):
+        spectra = np.array(spectra, ndmin=2)
+        spectra_count = spectra.shape[0]
+        logging.debug(f'Spectra count: {spectra_count}')
         corr_mat = np.zeros((spectra_count, descriptor_count))
-        for spec in range(spectra_count):
-            for desc in range(descriptor_count):
-                corr_mat[spec, desc] = self.descriptors[desc].compare_to_spectrum(spectra[spec], wlv, region_divisor)
-        names = [self.descriptors[i].material + str(i) for i in range(descriptor_count)]
+        for spec_i in range(spectra_count):
+            for desc_i in range(descriptor_count):
+                logging.info(f'Analysing spectrum {spec_i}: descriptor {desc_i}')
+                corr_mat[spec_i, desc_i] = self.descriptors[desc_i].compare_to_spectrum(spectra[spec_i, :], wlv, region_divisor)
+        names = [self.descriptors[i].material + '_desc_' + str(i) for i in range(descriptor_count)]
         data_out = pd.DataFrame(corr_mat)
         rename_dict = dict(zip(range(descriptor_count), names))
         data_out.rename(columns=rename_dict, inplace=True)

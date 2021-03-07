@@ -5,7 +5,9 @@ import pandas as pd
 import time
 import matplotlib.pyplot as plt
 import create_alignment_test_data
-
+import logging
+logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s]\t%(message)s')
+logging.disable()
 
 
 # pd.options.display.width = 0  # To make pandas autodetect terminal width
@@ -36,52 +38,73 @@ import create_alignment_test_data
 
 
 data = create_alignment_test_data.create_data()
+wlmin = np.min([np.min(spc.wlv) for spc in data])
+wlmax = np.max([np.max(spc.wlv) for spc in data])
+
+plt.figure()
 for spec in data:
     print(spec.wlv)
     plt.plot(spec.wlv, spec.intensities.T)
-plt.show()
+    plt.xlim(wlmin, wlmax)
+plt.draw()
+
+
 
 # Align:
-# ToDo: This only works with WLVs of the same resolution. If they have a different resolution, you need to interpolate.
+# This only works with WLVs of the same resolution. If they have a different resolution, you need to interpolate.
+# ToDo: Write a script that DETECTS
+# ToDo: Find a workaround for different resolutions. Probably: interpolate.
+
+# Verify resolution is the same
+resolutions = np.array([spc.wlv[1] - spc.wlv[0] for spc in data])
+print(resolutions)
+same = np.all(resolutions == resolutions[0])
+if not same:
+    raise ValueError('Wavelength vectors do not have the same resolution.\n'
+                     'Interpolation is not implemented yet.')
+
 final_spectra = HSI.Spectra(data[0].intensities, data[0].wlv, data[0].material_column)
 for spec in data[1:]:
-    wlv = spec.wlv
-    ints = spec.intensities
-    names = spec.material_column
-    # Align WLV
-    wlv_aligned = HSI.align_wlv(wlv, final_spectra.wlv)
-
-    # Find where overlap starts
-    wlv_start = 0
-    for i in range(len(wlv_aligned)):
-        if wlv_aligned[i] == wlv_aligned[i+1]:
-            wlv_start += 1
-        else:
-            break
-    # Find where overlap stops
-    wlv_stop = len(wlv_aligned) + 1
-    for i in range(len(wlv_aligned)).__reversed__():
-        if wlv_aligned[i] == wlv_aligned[i - 1]:
-            wlv_stop -= 1
-        else:
-            break
-
-    # Cut new data to shape
-    wlv_cut = spec.wlv[wlv_start:wlv_stop]  # Because [:-0] does not work
-    ints_cut = spec.intensities[:, wlv_start:wlv_stop]  # Because [:-0] does not work
-
-    print(final_spectra.wlv)
-    print(min(wlv_cut))
-
-    # Cut old data to shape if it overhangs the new WLV
-    # Left cut off:
-    if min(final_spectra.wlv) < min(wlv_cut):
-        start_i = int(np.where(final_spectra.wlv == min(wlv_cut))[0][0])
+    wlv_min = min(spec.wlv)
+    wlv_max = max(spec.wlv)
+    wlv_aligned = HSI.align_wlv(spec.wlv, final_spectra.wlv)
+    spec.wlv = wlv_aligned
+    # Detect overlap possibilities and cut accordingly:
+    # Cut overhanging parts of previously added spectra if they overhang the new WLV
+    # Cut the lower end
+    if min(final_spectra.wlv) < wlv_min:
+        logging.debug(np.where(final_spectra.wlv == min(spec.wlv))[0])
+        start_i = int(np.where(final_spectra.wlv == min(spec.wlv))[0])
         final_spectra.intensities = final_spectra.intensities[:, start_i:]
-    # Right cutoff:
-    if max(final_spectra.wlv) > max(wlv_cut):
-        stop_i = int(np.where(final_spectra.wlv == max(wlv_cut))) + 1
+        final_spectra.wlv = final_spectra.wlv[start_i:]
+    # Cut the upper end
+    if max(final_spectra.wlv) > wlv_max:
+        logging.debug(np.where(final_spectra.wlv == max(spec.wlv))[0])
+        stop_i = int(np.where(final_spectra.wlv == max(spec.wlv))[0] + 1)
         final_spectra.intensities = final_spectra.intensities[:, :stop_i]
+        final_spectra.wlv = final_spectra.wlv[:stop_i]
+    # Cut the new spectra to shape
+    # Cut lower end
+    if spec.wlv[0] == spec.wlv[1]:
+        logging.debug(np.where(spec.wlv == min(final_spectra.wlv))[0])
+        start_i = max(np.where(spec.wlv == min(final_spectra.wlv)[0]))  # Take highest, bc. there are "leading min()s"
+        spec.intensities = spec.intensities[:, start_i:]
+        spec.wlv = spec.wlv[start_i:]
+    # Cut upper end
+    if spec.wlv[-1] == spec.wlv[-2]:
+        logging.debug(np.where(spec.wlv == max(final_spectra.wlv))[0])
+        stop_i = min(np.where(spec.wlv == max(final_spectra.wlv))[0]) + 1  #  Take lowest: "trailing max()s"
+        spec.intensities = spec.intensities[:, :stop_i]
+        spec.wlv = spec.wlv[:stop_i]
+
+    # Append new spectra
+    final_spectra.add_spectra(spec)
+
+print(final_spectra.wlv)
+plt.figure()
+final_spectra.plot()
+plt.xlim(wlmin, wlmax)
+plt.show()
 
 
 

@@ -56,13 +56,12 @@ def load_samples_in_set(fpath):
     fpaths, files = get_files(fpath)
     print('Loading {0} files...'.format(len(files)))
     for path in fpaths:
-        file = pd.read_csv(path, delimiter=',|;', engine='python')  # python engine allows two separators with "or" (|)
+        file = pd.read_csv(path, delimiter=',|;', engine='python')  # python allows two separators with "or" (|)
         file = np.array(file)
         WLV = file[:, 0]
         intensities = file[:, 1]
         name = os.path.split(path)[1].split('.')[0]
-        mat_col = [name for i in range(intensities.shape[0])]
-        samples.append(HSI.Spectra(intensities, WLV, mat_col))
+        samples.append(HSI.Spectra(intensities, WLV, name))
     return samples
 
 def check_compatibility(fpath):
