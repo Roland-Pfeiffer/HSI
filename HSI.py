@@ -77,6 +77,16 @@ def align_wlv(wlv_to_align, wlv_to_align_WITH):
     return aligned_wlv
 
 
+def wavelen_to_wavenum(wl_nm: Union[float, int]):
+    """Takes wavelength (in nm) and returns the wavenumber (in cm⁻¹)"""
+    return 10000000 / wl_nm  # 10 mio nm in one cm
+
+
+def wavenum_to_wavelen(wavenum_cm1: Union[float, int]):
+    """Takes wavenumber (in cm⁻¹) and returns wavelength (in nm)"""
+    return 10000000 / wavenum_cm1  # 10 mio nm in one cm
+
+
 class BinaryMask:
     """
     Binary mask object with the following attributes:
@@ -182,6 +192,7 @@ class Descriptor:
         self.material = mat
     # ToDo: add start/stop and offer calculating descriptor integral.
 
+
 class TriangleDescriptor(Descriptor):
     """Takes a start wavelength, peak wavelengths and stop wavelength, and material  as input.
     """
@@ -234,6 +245,7 @@ class TriangleDescriptor(Descriptor):
         logging.debug('Second linspace: {}'.format(desc_linspace))
 
         # Get peak height (avg. of peak region - avg. of start/stop region (depending which is lower))
+        # ToDo: Turn this into functions
         # Make sure the descriptor is wide enough:
         if before_peak // region_divisor < 1:
             start_avg = spectrum[start_bin_index]
@@ -265,6 +277,7 @@ class TriangleDescriptor(Descriptor):
 
 
         # Calculate Pearson's Correlation Coefficient (r):
+        # ToDo: maybe turn this into a function too
         pre_peak_intensities = spectrum[start_bin_index:peak_bin_index + 1]
         post_peak_intensities = spectrum[peak_bin_index:stop_bin_index + 1]
 
@@ -284,8 +297,9 @@ class TriangleDescriptor(Descriptor):
         return out
 
     def plot(self):
-        print('Still to be done...')
-
+        pass
+        # ToDo: add
+    
     def show(self):
         return 'TriangleDescriptor:\t(Start: {0} | Peak: {1} | Stop: {2}. Material: {3})'.\
             format(self.start_wl, self.peak_wl, self.stop_wl, self.material)
