@@ -78,12 +78,12 @@ def align_wlv(wlv_to_align, wlv_to_align_WITH):
 
 
 def wavelen_to_wavenum(wl_nm: Union[float, int]):
-    """Takes wavelength (in nm) and returns the wavenumber (in cm⁻¹)"""
+    """Takes wavelength (in nm) and returns the wavenumber (per cm⁻¹)"""
     return 10000000 / wl_nm  # 10 mio nm in one cm
 
 
 def wavenum_to_wavelen(wavenum_cm1: Union[float, int]):
-    """Takes wavenumber (in cm⁻¹) and returns wavelength (in nm)"""
+    """Takes wavenumber (per cm⁻¹) and returns wavelength (in nm)"""
     return 10000000 / wavenum_cm1  # 10 mio nm in one cm
 
 
