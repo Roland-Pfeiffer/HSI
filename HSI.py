@@ -15,10 +15,11 @@ import logging
 # ToDo: Think about what to do when using different WLVs for different samples.
 #       This is actually the case with Josef's reference spectra.
 #       would dictionaries be too slow?
-
 # ToDo: Take into account peak prominence.
-
 # ToDo: normalisation, mean centering (in preprocessing function?)
+# ToDo: Allow masking when creating a spectra object
+# ToDo: align_wlv: Also produce an error estimate between the WLVs
+
 
 def load_hsi(fpath: str) -> 'hdr, img, wlv':
     """spectra = load_hsi(fpath)\n\n
@@ -45,6 +46,10 @@ def load_pixel(hdr_fpath: str, row, col, material: str = None) -> 'spectrum: Spe
     return out
 
 
+def load_and_unfold(hdr_path, mask=None):
+    _hdr, _cube, _path = load_hsi(hdr_path)
+
+
 def unfold_cube(cube):
     """spectra = unfold_cube(cube)\n\n
     Unfolds a hypercube of the dimensions (x, y, z) into a 2D numpy array
@@ -56,24 +61,33 @@ def unfold_cube(cube):
     return spectra
 
 
-def align_wlv(wlv_to_align, wlv_to_align_WITH):
-    """Aligns WLV a with WLV b.
-    Returns the aligned version of WLV a as a numpy array."""
+def mask_spectra(spectra: Spectra, mask: BinaryMask):
+    pass  # ToDo: mask spectra
+
+
+def find_peaks(spectrum: np.array, wlv: np.array):
+    pass
+
+
+def align_wlv(wlv_a, reference_wlv):
+    """Aligns wavelength vector (WLV) a with reference WLV.
+    Returns the aligned version of wavelength vector a a as a numpy array."""
     # ToDo: Also produce an error estimate between the WLVs
+    # ToDo: Get it to work for WLVs of different resolutions
     # Left overhang
-    if min(wlv_to_align) < min(wlv_to_align_WITH):
-        print('wlv {0} begins with lower value(s) than reference wlv {1}.'.format(wlv_to_align, wlv_to_align_WITH))
+    if min(wlv_a) < min(reference_wlv):
+        print('wlv 1 begins with lower value(s) than reference wlv {1}.'.format(wlv_a, reference_wlv))
         print('NOTE: min(wlv_to_align) < min(wlv_to_align_WITH),\n'
               'First wlv overhangs reference wlv on the lower end.\n'
-              f'{wlv_to_align}\n{wlv_to_align_WITH}\n'
+              f'{wlv_a}\n{reference_wlv}\n'
               'Overhanging areas will be filled with min() of reference vector.')
     # Right overhang
-    if max(wlv_to_align) > max(wlv_to_align_WITH):
+    if max(wlv_a) > max(reference_wlv):
         print('NOTE: max(wlv_to_align) > max(wlv_to_align_WITH),\n'
               'First wlv overhangs reference wlv on the upper end.\n'
-              f'{wlv_to_align}\n{wlv_to_align_WITH}\n'
+              f'{wlv_a}\n{reference_wlv}\n'
               'Overhanging areas will be filled with max() of reference vector.')
-    aligned_wlv = [wlv_to_align_WITH[np.argmin(abs(wlv_to_align_WITH - k))] for k in wlv_to_align]
+    aligned_wlv = [reference_wlv[np.argmin(abs(reference_wlv - k))] for k in wlv_a]
     return aligned_wlv
 
 
@@ -85,6 +99,19 @@ def wavelen_to_wavenum(wl_nm: Union[float, int]):
 def wavenum_to_wavelen(wavenum_cm1: Union[float, int]):
     """Takes wavenumber (per cm⁻¹) and returns wavelength (in nm)"""
     return 10000000 / wavenum_cm1  # 10 mio nm in one cm
+
+
+def points_within_wlv(points: iter(), wlv:np.ndarray):
+    """Checks if points (an iterable) all lie within a WLV.
+    Returns True or False"""
+    return min(points) >= min(wlv) and max(points) <= max(wlv)
+
+
+def correlation(a: np.array, b: np.array):
+    """Returns the Pearson correlation (R) of a and b"""
+    assert len(a) == len(b), 'Vectors for Pearson correl. are of unequal length.'
+    pearson_r = scipy.stats.pearsonr(a, b)
+    return pearson_r
 
 
 class BinaryMask:
@@ -104,14 +131,6 @@ class BinaryMask:
         self.full_vector = _mask.reshape((_x * _y))  # Unfold
         self.index_vector = np.where(self.full_vector == 1)[0]  # Locate only "in" values
         self.material = material
-
-
-def load_and_unfold(hdr_path, mask = None, material = None):
-    _hdr, _cube, _path = load_hsi(hdr_path)
-
-
-def points_within_wlv(points: iter(), wlv:np.ndarray):
-    return min(points) >= min(wlv) and max(points) <= max(wlv)
 
 
 class Spectra:
@@ -137,13 +156,12 @@ class Spectra:
         return Spectra(self.intensities[subset_index], self.wlv, self.material_column)
 
     def add_spectra(self, spectra: Spectra):
-        if not np.alltrue(self.wlv == spectra.wlv):
-            raise Exception('WLVs not identical.\nSpectra not merged.')
-            # ToDo: Maybe just note that it was skipped so it doesn't break the code
-        else:
-            self.intensities = np.vstack((self.intensities, spectra.intensities))
-            # Update material column
-            [self.material_column.append(material) for material in spectra.material_column]
+        assert np.alltrue(self.wlv == spectra.wlv), 'ERROR: WLVs not identical.Spectra not merged.'
+        # ToDo: Maybe just note that it was skipped so it doesn't break the code
+        # 'Glue' the new spectra under the existing one
+        self.intensities = np.vstack((self.intensities, spectra.intensities))
+        # Update (i.e. append) material column
+        [self.material_column.append(material) for material in spectra.material_column]
 
     def export_to_npz(self, savename):
         np.savez(savename, self.intensities, self.wlv)
@@ -176,14 +194,6 @@ class MulticlassMask:
     pass
 
 
-def mask_spectra(spectra: Spectra, mask: BinaryMask):
-    pass
-
-
-def find_peaks(spectrum: np.array, wlv: np.array):
-    pass
-
-
 class Descriptor:
     """General descriptor class. Makes sure they all have a .material attribute.
     All descriptors (triangles, etc.) inherit from this.
@@ -210,7 +220,7 @@ class TriangleDescriptor(Descriptor):
         # Initiate index attributes
         start_bin_index, peak_bin_index, stop_bin_index = None, None, None
 
-    def compare_to_spectrum(self, spectrum, wlv: np.array, region_divisor: int = 2):
+    def compare_to_spectrum(self, spectrum, wlv: np.array):
         """(avg_pearson_r, avg_r_multiplied_by_rel_peak_height) = TriangleDescriptor.compare_to_spectrum(spectrum, wlv, region_divisor)
         Takes a Spectrum as input and then compares how well it is matched by the descriptors.
         Returns average pearson correlation as well as avg. correl. muliplied by relative peak height.
@@ -220,9 +230,11 @@ class TriangleDescriptor(Descriptor):
         ToDo:   Change region divisor to region width or something more relatable
         """
         # Account for values outside of wlv range:
-        assert min(wlv) < self.peak_wl < max(wlv)
+        assert min(wlv) < self.peak_wl < max(wlv)  # Make sure the peak is BETWEEN the end values
+        # if start is below of wlv min, set wlv min as start_wl
         if self.start_wl <= min(wlv):
             self.start_wl = min(wlv)
+        # If stop is above wlv max set wlv max as stop_wl
         if self.stop_wl >= max(wlv):
             self.stop_wl = max(wlv)
 
@@ -233,48 +245,28 @@ class TriangleDescriptor(Descriptor):
         logging.debug('Index: (Start|Peak|Stop): ({0}|{1}|{2})'.format(start_bin_index, peak_bin_index, stop_bin_index))
 
         # Create linspaces (+1 because peak and stop bin are included)
-        before_peak = int(peak_bin_index - start_bin_index) + 1
-        after_peak = int(stop_bin_index - peak_bin_index) + 1
+        before_peak_len = int(peak_bin_index - start_bin_index) + 1
+        after_peak_len = int(stop_bin_index - peak_bin_index) + 1
 
-        asc_linspace = np.linspace(0, 1, before_peak)
-        desc_linspace = np.linspace(1, 0, after_peak)
+        asc_linspace = np.linspace(0, 1, before_peak_len)
+        desc_linspace = np.linspace(1, 0, after_peak_len)
 
-        logging.debug('Before peak: {}'.format(before_peak))
+        logging.debug('Before peak: {}'.format(before_peak_len))
         logging.debug('First linspace: {}'.format(asc_linspace))
-        logging.debug('After peak: {}'.format(after_peak))
+        logging.debug('After peak: {}'.format(after_peak_len))
         logging.debug('Second linspace: {}'.format(desc_linspace))
 
         # Get peak height (avg. of peak region - avg. of start/stop region (depending which is lower))
         # ToDo: Turn this into functions
         # Make sure the descriptor is wide enough:
-        if before_peak // region_divisor < 1:
-            start_avg = spectrum[start_bin_index]
-        else:
-            logging.debug(f'Spectrum: {spectrum}')
-            buffer = before_peak // region_divisor
-            logging.debug(f'Buffer: {buffer}')
-            in_values = spectrum[(start_bin_index - buffer):(start_bin_index + buffer)]
-            logging.debug(in_values)
-            start_avg = np.mean(spectrum[(start_bin_index - buffer):(start_bin_index + buffer)])
-
-        if before_peak // region_divisor < 1 or after_peak // region_divisor < 1:
-            peak_avg = spectrum[peak_bin_index]
-        else:
-            peak_avg = np.mean(spectrum[peak_bin_index - (before_peak // region_divisor):
-                                        peak_bin_index + (after_peak // region_divisor)])
-
-        if after_peak // region_divisor < 1:
-            stop_avg = spectrum[stop_bin_index]
-        else:
-            buffer = after_peak // region_divisor
-            stop_avg = np.mean(spectrum[(stop_bin_index - buffer):(stop_bin_index + buffer)])
-
-        low = min([start_avg, stop_avg])
-        peak_height = peak_avg - low
+        start_int = spectrum[start_bin_index]
+        peak_int = spectrum[peak_bin_index]
+        stop_int = spectrum[stop_bin_index]
+        low = np.mean([start_int, stop_int])
+        peak_height = peak_int - low
         rel_peak_height = peak_height / (max(spectrum) - min(spectrum))
         logging.debug('Peak height: {}'.format(peak_height))
         logging.debug('Relative peak height: {}'.format(rel_peak_height))
-
 
         # Calculate Pearson's Correlation Coefficient (r):
         # ToDo: maybe turn this into a function too
@@ -331,8 +323,8 @@ class DescriptorSet:
         return _out
 
     def correlate(self, spectra: np.array, wlv: np.array, region_divisor = 2):
-        """Note that the correlation matrix includes values that have been .... [and I never finished the sentence]
-        ..... cut off or merged if they were outside of the WLV range?"""
+        """Note that the correlation matrix includes values that have been .... [and I never finished the sentence.
+        ..... cut off or merged if they were outside of the WLV range?]"""
         descriptor_count = len(self.descriptors)
 
         # Avoid dimension confusions: Force spectra to be 2D array (using ndmin=2):
