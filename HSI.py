@@ -218,7 +218,9 @@ class TriangleDescriptor(Descriptor):
         self.stop_wl = wl_stop
         # Wavelength attributes for start, peak and stop
         # Initiate index attributes
-        start_bin_index, peak_bin_index, stop_bin_index = None, None, None
+        self.start_index = None
+        self.peak_index = None
+        self.stop_index = None
 
     def compare_to_spectrum(self, spectrum, wlv: np.array):
         """(avg_pearson_r, avg_r_multiplied_by_rel_peak_height) = TriangleDescriptor.compare_to_spectrum(spectrum, wlv, region_divisor)
@@ -238,52 +240,38 @@ class TriangleDescriptor(Descriptor):
         if self.stop_wl >= max(wlv):
             self.stop_wl = max(wlv)
 
-        # Get bin indices
-        start_bin_index = np.argmin(np.abs(wlv - self.start_wl))
-        peak_bin_index = np.argmin(np.abs(wlv - self.peak_wl))
-        stop_bin_index = np.argmin(np.abs(wlv - self.stop_wl))
-        logging.debug('Index: (Start|Peak|Stop): ({0}|{1}|{2})'.format(start_bin_index, peak_bin_index, stop_bin_index))
+        # Get indices for start, peak and stop
+        self.start_index = np.argmin(np.abs(wlv - self.start_wl))
+        self.peak_index = np.argmin(np.abs(wlv - self.peak_wl))
+        self.stop_index = np.argmin(np.abs(wlv - self.stop_wl))
 
-        # Create linspaces (+1 because peak and stop bin are included)
-        before_peak_len = int(peak_bin_index - start_bin_index) + 1
-        after_peak_len = int(stop_bin_index - peak_bin_index) + 1
-
-        asc_linspace = np.linspace(0, 1, before_peak_len)
-        desc_linspace = np.linspace(1, 0, after_peak_len)
-
-        logging.debug('Before peak: {}'.format(before_peak_len))
-        logging.debug('First linspace: {}'.format(asc_linspace))
-        logging.debug('After peak: {}'.format(after_peak_len))
-        logging.debug('Second linspace: {}'.format(desc_linspace))
+        # Create descriptor vector:
+        before_peak_len = int(self.peak_index - self.start_index)
+        after_peak_len = int(self.stop_index - self.peak_index)
+        last_value_before_peak = 1 - (1 / before_peak_len)
+        asc_linspace = np.linspace(0, last_value_before_peak, before_peak_len)
+        desc_linspace = np.linspace(1, 0, after_peak_len + 1)  # +1 because stop is included
+        triangle_array = np.hstack(asc_linspace, desc_linspace)
+        logging.debug(triangle_array)
 
         # Get peak height (avg. of peak region - avg. of start/stop region (depending which is lower))
         # ToDo: Turn this into functions
         # Make sure the descriptor is wide enough:
-        start_int = spectrum[start_bin_index]
-        peak_int = spectrum[peak_bin_index]
-        stop_int = spectrum[stop_bin_index]
+        start_int = spectrum[self.start_index]
+        peak_int = spectrum[self.peak_index]
+        stop_int = spectrum[self.stop_index]
         low = np.mean([start_int, stop_int])
         peak_height = peak_int - low
         rel_peak_height = peak_height / (max(spectrum) - min(spectrum))
-        logging.debug('Peak height: {}'.format(peak_height))
-        logging.debug('Relative peak height: {}'.format(rel_peak_height))
 
         # Calculate Pearson's Correlation Coefficient (r):
-        # ToDo: maybe turn this into a function too
-        pre_peak_intensities = spectrum[start_bin_index:peak_bin_index + 1]
-        post_peak_intensities = spectrum[peak_bin_index:stop_bin_index + 1]
+        # Extract region of interest from spectrum and compare to the triangle
+        spec_roi = spectrum[self.start_index:self.stop_index + 1]
+        pearsons_r = scipy.stats.pearsonr(triangle_array, spec_roi)
 
-        logging.debug('Pre-peak intensities: {}'.format(pre_peak_intensities))
-        logging.debug('Post-peak intensities: {}'.format(post_peak_intensities))
-
-        pearsons_r_asc = scipy.stats.pearsonr(pre_peak_intensities, asc_linspace)
-        pearsons_r_desc = scipy.stats.pearsonr(post_peak_intensities, desc_linspace)
-        logging.debug('Peasons r (ascending|descending): ({0}|{1})'.format(pearsons_r_asc, pearsons_r_desc))
-
-        pearsons_r_avg = (pearsons_r_asc[0] + pearsons_r_desc[0]) / 2
         # "Deactivate" everything below 0.5:
-        if pearsons_r_avg >= 0.5:
-            out = pearsons_r_avg * rel_peak_height
+        if abs(pearsons_r[0]) >= 0.5:
+            out = pearsons_r * rel_peak_height
         else:
             out = 0
         return out
