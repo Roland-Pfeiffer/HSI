@@ -1,5 +1,5 @@
 import logging
-logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s]\t%(message)s')
+# logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s]\t%(message)s')
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,15 +28,33 @@ spects.add_spectra(px_pill)
 print(type(spects.wlv))
 print(type(spects.intensities))
 
-spects = spects.smoothen_savgol(1, 0, 0)
+spects = spects.smoothen_savgol(5, 0)
+derivs = spects.turn_into_gradient()
 
 # plt.figure('Original')
 # plt.plot(spects.wlv, spects.intensities.T)
 # plt.title('Original')
+#
+# plt.figure('1st derivative')
+# plt.plot(derivs.wlv, derivs.intensities.T)
+# plt.title('1st derivative')
+# plt.show()
 
-plt.figure('1st derivative')
-plt.plot(spects.wlv, spects.intensities.T)
-plt.title('1st derivative')
+# Double-axis plot code from: https://matplotlib.org/2.2.5/gallery/api/two_scales.html
+fig, ax1 = plt.subplots()
+color = 'tab:red'
+ax1.set_xlabel('Wavelength (nm)')
+ax1.set_ylabel('Intensities', color=color)
+ax1.plot(spects.wlv, spects.intensities.T, color=color)
+ax1.tick_params(axis='y', labelcolor=color)
+
+ax2 = ax1.twinx()
+color = 'tab:blue'
+ax2.set_ylabel('Derivative', color=color)  # we already handled the x-label with ax1
+ax2.plot(spects.wlv, derivs.intensities.T, color=color)
+ax2.tick_params(axis='y', labelcolor=color)
+
+fig.tight_layout()  # otherwise the right y-label is slightly clipped
 plt.show()
 
 # plt.figure('Smoothed')

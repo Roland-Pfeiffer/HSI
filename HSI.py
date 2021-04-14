@@ -196,7 +196,7 @@ class Spectra:
         ints_smoothed = savgol_filter(self.intensities, window_size, polynomial, 0)
         return Spectra(ints_smoothed, self.wlv, self.material)
 
-    def gradient(self):
+    def derivative(self):
         """Returns an array containing the gradients of the intensities. Does not replace them inplace.
         Does not create a new spectra object, just returns a np.array"""
         assert self.intensities.ndim == 2
@@ -256,7 +256,7 @@ class TriangleDescriptor(Descriptor):
     def compare_to_spectrum(self, spectrum, wlv: np.array):
         """(avg_pearson_r, avg_r_multiplied_by_rel_peak_height) = TriangleDescriptor.compare_to_spectrum(spectrum, wlv, region_divisor)
         Takes a Spectrum as input and then compares how well it is matched by the descriptors.
-        Returns average pearson correlation as well as avg. correl. muliplied by relative peak height.
+        Returns average pearson correlation as well as avg. correl. BOTH muliplied by relative peak height.
         region_divisor: number of bins before and after peak will be divided by this. Is used as avg. region width.
         ToDo:   Perhaps use a Spectra class as input, making the second wlv parameter obsolete. However, now it's more
                 accessible.
@@ -288,18 +288,23 @@ class TriangleDescriptor(Descriptor):
         # Get peak height (avg. of peak region - avg. of start/stop region (depending which is lower))
         # ToDo: Turn this into functions
         # Make sure the descriptor is wide enough:
-        start_int = spectrum[self.start_i]
-        peak_int = spectrum[self.peak_i]
-        stop_int = spectrum[self.stop_i]
-        logging.debug(f'Start: {start_int:.4f} [{self.start_i}] | '
-                      f'Peak: {peak_int:.4f} [{self.peak_i}] | '
-                      f'Stop: {stop_int:.4f} [{self.stop_i}]')
-        low = np.mean([start_int, stop_int])
-        peak_height = peak_int - low
-        rel_peak_height = peak_height / (max(spectrum) - min(spectrum))
-        logging.debug(f'Min: {min(spectrum)} | Max: {max(spectrum)}')
-        logging.debug(f'Peak height: {peak_height}')
-        logging.debug(f'Relative peak height: {rel_peak_height}')
+        intensity_start = spectrum[self.start_i]
+        intensity_peak = spectrum[self.peak_i]
+        intensity_stop = spectrum[self.stop_i]
+        logging.debug(f'Start: {intensity_start:.4f} [{self.start_i}] | '
+                      f'Peak: {intensity_peak:.4f} [{self.peak_i}] | '
+                      f'Stop: {intensity_stop:.4f} [{self.stop_i}]')
+
+        # Make sure the peak is a peak and not a slope or a valley
+        rel_peak_height = 0
+        if intensity_start < intensity_peak and intensity_stop < intensity_peak:
+            low = np.mean([intensity_start, intensity_stop])
+            peak_height = intensity_peak - low
+            rel_peak_height = peak_height / (max(spectrum) - min(spectrum))
+            logging.debug(f'Min: {min(spectrum)} | Max: {max(spectrum)}')
+            logging.debug(f'Peak height: {peak_height}')
+            logging.debug(f'Relative peak height: {rel_peak_height}')
+
         # Calculate Pearson's Correlation Coefficient (r):
         # Extract region of interest from spectrum and compare to the triangle
         spec_roi = spectrum[self.start_i:self.stop_i + 1]
@@ -307,10 +312,8 @@ class TriangleDescriptor(Descriptor):
 
         # "Deactivate" everything below 0.5:
         if abs(pearsons_r[0]) >= 0.5:
-            out = pearsons_r * rel_peak_height
-        else:
-            out = 0
-        return out
+            return pearsons_r * rel_peak_height
+        return 0
 
     def show(self):
         return 'TriangleDescriptor:\t(Start: {0} | Peak: {1} | Stop: {2}. Material: {3})'.\
