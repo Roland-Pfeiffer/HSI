@@ -30,4 +30,14 @@ plt.plot(x, b, alpha=0.5)
 plt.show()
 print(pearsonr(a, b))
 
-
+# a = np.hstack([np.linspace(0, 10, 100), np.linspace(10, 0, 100)])
+# b = np.hstack([np.linspace(0, 10, 115), np.linspace(10, 0, 85)])
+# c = np.hstack([np.linspace(0, 10, 120), np.linspace(10, 0, 80)])
+# plt.plot(list(range(200)), a)
+# plt.plot(list(range(200)), b)
+# plt.plot(list(range(200)), c)
+#
+# plt.show()
+#
+# print(pearsonr(a, b))
+# print(pearsonr(a, c))

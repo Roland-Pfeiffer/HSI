@@ -21,12 +21,12 @@ np.set_printoptions(threshold=np.inf,
 
 fname_PE = '/media/findux/DATA/HSI_Data/reference_spectra_josef/PE.csv'
 data = np.loadtxt(fname_PE, delimiter=';')
-PE = HSI.Spectra(data[:,1], data[:,0])
+PE = HSI.Spectra(data[:, 1], data[:, 0])
 # PE.plot()
 
 fname_PLLA = '/media/findux/DATA/HSI_Data/reference_spectra_josef/PLLA.CSV'
 data = np.loadtxt(fname_PLLA, delimiter=';')
-PLLA = HSI.Spectra(data[:,1], data[:,0])
+PLLA = HSI.Spectra(data[:, 1], data[:, 0])
 # PLLA.plot()
 
 wlv_a = np.array([3970.88037357, 3972.80892158, 3974.7374696,  3976.66601761, 3978.59456562, 3980.52311363,

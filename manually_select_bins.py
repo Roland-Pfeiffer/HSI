@@ -18,13 +18,13 @@ for file in files:
     print(len(file.wlv))
 
 # Merge files into one spectrum class:
-spectra = HSI.Spectra(files[0].intensities, files[0].wlv, files[0].material_column)
+spectra = HSI.Spectra(files[0].intensities, files[0].wlv, files[0].material)
 for spec in files[1:]:
     spectra.add_spectra(spec)
 spectra.plot()
 plt.show()
 for file in files:
-    print(file.material_column)
+    print(file.material)
 
 # Select three values (for tri_desc) by hand
 
@@ -32,14 +32,14 @@ spec = files[0]
 print('Spectrum:')
 print(spec.intensities)
 print(type(spec.intensities))
-material = spec.material_column[0]
+material = spec.material[0]
 
 
 # Obtain descriptor positions:
 descs = []
 while True:
     plt.plot(spec.wlv, spec.intensities)
-    plt.title(spec.material_column)
+    plt.title(spec.material)
     coords = plt.ginput(3)
     plt.close()
     if len(coords) == 3:

@@ -21,7 +21,7 @@ import logging
 # ToDo: align_wlv: Also produce an error estimate between the WLVs
 
 
-def load_hsi(fpath: str) -> 'hdr, img, wlv':
+def load_hsi(fpath: str) -> 'hdr, cube, wlv':
     """spectra = load_hsi(fpath)\n\n
     Takes path to a header (.hdr) hsi file and returns header file, hypercube array and wavelength vector (WLV)
     (aka wavenumbers). WLV is retrieved from the centers of bands.
@@ -29,21 +29,30 @@ def load_hsi(fpath: str) -> 'hdr, img, wlv':
     :rtype: .hdr, np.array, np.array
     """
     hdr = spectral.open_image(fpath)
-    img_cube = hdr.load()
+    cube = hdr.load()
     wlv = np.array(hdr.bands.centers)
     # spct = Spectra(unfold_cube(img_cube), wlv)
-    return hdr, img_cube, wlv
+    return hdr, cube, wlv
 
 
-def load_pixel(hdr_fpath: str, row, col, material: str = None) -> 'spectrum: Spectra':
+def load_pixel(hdr_fpath: str, row, col, material: str=None) -> 'spectrum: Spectra':
     """spectrum, wlv = load_pixel(fpath, row, col)
-    Reads the spectrum of given pixel and outputs a spectrum object.
+    Reads the spectrum of given pixel and outputs a Spectra object.
     """
     hdr = spectral.open_image(hdr_fpath)
     spec = hdr.read_pixel(row, col)
-    wlv = hdr.bands.centers
+    wlv = np.array(hdr.bands.centers)
     out = Spectra(spec, wlv, list(material))
     return out
+
+
+def load_area(corner_tl: tuple, corner_br: tuple, material: str=None):
+    """Loads a rectangular area out of a hyperspectral datacube.
+    :param corner_tl: Tuple containing of (row, column) of the TL corner
+    :param corner_br: Tuple containing of (row, column) of the BR corner"""
+    pass
+    # ToDo
+
 
 
 def load_and_unfold(hdr_path, mask=None):
@@ -93,12 +102,12 @@ def align_wlv(wlv_a, reference_wlv):
 
 def wavelen_to_wavenum(wl_nm: Union[float, int]):
     """Takes wavelength (in nm) and returns the wavenumber (per cm⁻¹)"""
-    return 10000000 / wl_nm  # 10 mio nm in one cm
+    return 10_000_000 / wl_nm  # 10 mio nm in one cm
 
 
 def wavenum_to_wavelen(wavenum_cm1: Union[float, int]):
     """Takes wavenumber (per cm⁻¹) and returns wavelength (in nm)"""
-    return 10000000 / wavenum_cm1  # 10 mio nm in one cm
+    return 10_000_000 / wavenum_cm1  # 10 mio nm in one cm
 
 
 def points_within_wlv(points: iter(), wlv:np.ndarray):
@@ -136,10 +145,19 @@ class BinaryMask:
 class Spectra:
     """2D np.array containing a set of spectra.
     """
-    def __init__(self, intensities: np.array, wlv: np.array, material_column: list = None):
+    def __init__(self, intensities: np.array, wlv: np.array, material: list = None):
+        assert isinstance(intensities, np.ndarray), TypeError('Intensities need to be a numpy array.')
+        assert isinstance(wlv, np.ndarray), TypeError('WLV needs to be a numpy array.')
         self.wlv = wlv
         self.intensities = intensities
-        self.material_column = [material_column]
+        # If the material column is not a list, turn it into one.
+        if isinstance(material, str):
+            self.material = [material]
+        elif isinstance(material, list):
+            self.material = material
+        # Make sure intensities are a 2D array
+        if self.intensities.ndim == 1:
+            self.intensities = np.array([self.intensities, ])
 
     def random_subsample(self, n=250, seed: int = 42):
         """
@@ -153,7 +171,7 @@ class Spectra:
         # Otherwise, take random sample
         random.seed(seed)
         subset_index = random.choices(range(self.intensities.shape[0]), k=n)
-        return Spectra(self.intensities[subset_index], self.wlv, self.material_column)
+        return Spectra(self.intensities[subset_index], self.wlv, self.material)
 
     def add_spectra(self, spectra: Spectra):
         assert np.alltrue(self.wlv == spectra.wlv), 'ERROR: WLVs not identical.Spectra not merged.'
@@ -161,7 +179,7 @@ class Spectra:
         # 'Glue' the new spectra under the existing one
         self.intensities = np.vstack((self.intensities, spectra.intensities))
         # Update (i.e. append) material column
-        [self.material_column.append(material) for material in spectra.material_column]
+        [self.material.append(material) for material in spectra.material]
 
     def export_to_npz(self, savename):
         np.savez(savename, self.intensities, self.wlv)
@@ -173,8 +191,21 @@ class Spectra:
         y = self.intensities
         plt.plot(x, y.T)
 
-    def smoothen(self, window_size, polynomial: int, derivative: int = 0):
-        self.intensities = savgol_filter(self.intensities,window_size, polynomial, derivative)
+    def smoothen_savgol(self, window_size, polynomial: int):
+        """Returnes a Spectra object with smoothed intensity array"""
+        ints_smoothed = savgol_filter(self.intensities, window_size, polynomial, 0)
+        return Spectra(ints_smoothed, self.wlv, self.material)
+
+    def gradient(self):
+        """Returns an array containing the gradients of the intensities. Does not replace them inplace.
+        Does not create a new spectra object, just returns a np.array"""
+        assert self.intensities.ndim == 2
+        return np.gradient(self.intensities, axis=1)
+
+    def turn_into_gradient(self):
+        """Returns an array where the 'intensities' array actually contains the derivatives."""
+        grads = np.gradient(self.intensities, axis=1)
+        return Spectra(grads, self.wlv, self.material)
 
     def verify(self):
         """Returns True if wlv len fits the spectral dimension of the intensities matrix"""
@@ -218,9 +249,9 @@ class TriangleDescriptor(Descriptor):
         self.stop_wl = wl_stop
         # Wavelength attributes for start, peak and stop
         # Initiate index attributes
-        self.start_index = None
-        self.peak_index = None
-        self.stop_index = None
+        self.start_i = None
+        self.peak_i = None
+        self.stop_i = None
 
     def compare_to_spectrum(self, spectrum, wlv: np.array):
         """(avg_pearson_r, avg_r_multiplied_by_rel_peak_height) = TriangleDescriptor.compare_to_spectrum(spectrum, wlv, region_divisor)
@@ -229,7 +260,6 @@ class TriangleDescriptor(Descriptor):
         region_divisor: number of bins before and after peak will be divided by this. Is used as avg. region width.
         ToDo:   Perhaps use a Spectra class as input, making the second wlv parameter obsolete. However, now it's more
                 accessible.
-        ToDo:   Change region divisor to region width or something more relatable
         """
         # Account for values outside of wlv range:
         assert min(wlv) < self.peak_wl < max(wlv)  # Make sure the peak is BETWEEN the end values
@@ -241,32 +271,38 @@ class TriangleDescriptor(Descriptor):
             self.stop_wl = max(wlv)
 
         # Get indices for start, peak and stop
-        self.start_index = np.argmin(np.abs(wlv - self.start_wl))
-        self.peak_index = np.argmin(np.abs(wlv - self.peak_wl))
-        self.stop_index = np.argmin(np.abs(wlv - self.stop_wl))
+        self.start_i = np.argmin(np.abs(wlv - self.start_wl))
+        self.peak_i = np.argmin(np.abs(wlv - self.peak_wl))
+        self.stop_i = np.argmin(np.abs(wlv - self.stop_wl))
+        logging.debug(f'Start i: {self.start_i} | Peak i: {self.peak_i} | Stop i: {self.stop_i}')
 
         # Create descriptor vector:
-        before_peak_len = int(self.peak_index - self.start_index)
-        after_peak_len = int(self.stop_index - self.peak_index)
+        before_peak_len = int(self.peak_i - self.start_i)
+        after_peak_len = int(self.stop_i - self.peak_i)
         last_value_before_peak = 1 - (1 / before_peak_len)
         asc_linspace = np.linspace(0, last_value_before_peak, before_peak_len)
         desc_linspace = np.linspace(1, 0, after_peak_len + 1)  # +1 because stop is included
-        triangle_array = np.hstack(asc_linspace, desc_linspace)
-        logging.debug(triangle_array)
+        triangle_array = np.hstack([asc_linspace, desc_linspace])
+        logging.debug(f'Triangle array: {triangle_array}')
 
         # Get peak height (avg. of peak region - avg. of start/stop region (depending which is lower))
         # ToDo: Turn this into functions
         # Make sure the descriptor is wide enough:
-        start_int = spectrum[self.start_index]
-        peak_int = spectrum[self.peak_index]
-        stop_int = spectrum[self.stop_index]
+        start_int = spectrum[self.start_i]
+        peak_int = spectrum[self.peak_i]
+        stop_int = spectrum[self.stop_i]
+        logging.debug(f'Start: {start_int:.4f} [{self.start_i}] | '
+                      f'Peak: {peak_int:.4f} [{self.peak_i}] | '
+                      f'Stop: {stop_int:.4f} [{self.stop_i}]')
         low = np.mean([start_int, stop_int])
         peak_height = peak_int - low
         rel_peak_height = peak_height / (max(spectrum) - min(spectrum))
-
+        logging.debug(f'Min: {min(spectrum)} | Max: {max(spectrum)}')
+        logging.debug(f'Peak height: {peak_height}')
+        logging.debug(f'Relative peak height: {rel_peak_height}')
         # Calculate Pearson's Correlation Coefficient (r):
         # Extract region of interest from spectrum and compare to the triangle
-        spec_roi = spectrum[self.start_index:self.stop_index + 1]
+        spec_roi = spectrum[self.start_i:self.stop_i + 1]
         pearsons_r = scipy.stats.pearsonr(triangle_array, spec_roi)
 
         # "Deactivate" everything below 0.5:
@@ -276,10 +312,6 @@ class TriangleDescriptor(Descriptor):
             out = 0
         return out
 
-    def plot(self):
-        pass
-        # ToDo: add
-    
     def show(self):
         return 'TriangleDescriptor:\t(Start: {0} | Peak: {1} | Stop: {2}. Material: {3})'.\
             format(self.start_wl, self.peak_wl, self.stop_wl, self.material)
@@ -323,7 +355,7 @@ class DescriptorSet:
         for spec_i in range(spectra_count):
             for desc_i in range(descriptor_count):
                 logging.info(f'Analysing spectrum {spec_i}: descriptor {desc_i}')
-                corr_mat[spec_i, desc_i] = self.descriptors[desc_i].compare_to_spectrum(spectra[spec_i, :], wlv, region_divisor)
+                corr_mat[spec_i, desc_i] = self.descriptors[desc_i].compare_to_spectrum(spectra[spec_i, :], wlv)
         names = [self.descriptors[i].material + '_desc_' + str(i) for i in range(descriptor_count)]
         data_out = pd.DataFrame(corr_mat)
         rename_dict = dict(zip(range(descriptor_count), names))

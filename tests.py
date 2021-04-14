@@ -19,3 +19,6 @@ stop_WN = 2300
 start_WL = HSI.wavenum_to_wavelen(stop_WN)  # Wavenumbers are inverted to wavelength
 stop_WL = HSI.wavenum_to_wavelen(start_WN)  # Wavenumbers are inverted to wavelength
 print(f'Start: {start_WL:.2f} nm | Stop: {stop_WL:.2f} nm')
+
+a = [1, 2, 3, 4]
+print([a])

@@ -19,9 +19,9 @@ import pandas as pd
 # print('Extracting peaks...')
 # peaks = find_peaks(PA6, prominence=range_PA6 * 0.15)  # NOTE: Gives funky results with NaNs
 # peak_proms = peak_prominences(PA6, peaks[0])
-# peak_index = peaks[0]
+# peak_i = peaks[0]
 # # plt.plot(wlv, PA6)
-# plt.vlines(wlv[peak_index], ymin=min(PA6), ymax=max(PA6), colors='Yellow')
+# plt.vlines(wlv[peak_i], ymin=min(PA6), ymax=max(PA6), colors='Yellow')
 # # Show raw spectrum
 # # plt.figure('Raw')
 # # plt.plot(wlv, data)

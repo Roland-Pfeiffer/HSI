@@ -62,7 +62,7 @@ logging.disable()
 #     raise ValueError('Wavelength vectors do not have the same resolution.\n'
 #                      'Interpolation is not implemented yet.')
 #
-# final_spectra = HSI.Spectra(data[0].intensities, data[0].wlv, data[0].material_column)
+# final_spectra = HSI.Spectra(data[0].intensities, data[0].wlv, data[0].material)
 # for spec in data[1:]:
 #     wlv_min = min(spec.wlv)
 #     wlv_max = max(spec.wlv)
@@ -126,7 +126,7 @@ def crop_spectra(Spectra_list):
                          'Interpolation is not implemented yet.')  # ToDo: Remove the raise error once resolved.
 
     # First, just copy the first spectrum:
-    final_spectra = HSI.Spectra(Spectra_list[0].intensities, Spectra_list[0].wlv, Spectra_list[0].material_column)
+    final_spectra = HSI.Spectra(Spectra_list[0].intensities, Spectra_list[0].wlv, Spectra_list[0].material)
     for spec in data[1:]:
         wlv_min = min(spec.wlv)
         wlv_max = max(spec.wlv)
