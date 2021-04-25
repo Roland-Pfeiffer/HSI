@@ -54,9 +54,9 @@ def load_area(corner_tl: tuple, corner_br: tuple, material: str=None):
     # ToDo
 
 
-
 def load_and_unfold(hdr_path, mask=None):
     _hdr, _cube, _path = load_hsi(hdr_path)
+    # ToDo: Inclomplete
 
 
 def unfold_cube(cube):
@@ -138,7 +138,7 @@ class BinaryMask:
         _x, _y = _mask.shape
         self.mask_2D = _mask
         self.full_vector = _mask.reshape((_x * _y))  # Unfold
-        self.index_vector = np.where(self.full_vector == 1)[0]  # Locate only "in" values
+        self.in_value_indices = np.where(self.full_vector == 1)[0]  # Locate only "in" values
         self.material = material
 
 
@@ -214,55 +214,34 @@ class Spectra:
         else:
             return False
 
-
-class MulticlassMask:
-    def __init__(self, masks: tuple, materials: tuple):
-        """Takes a tuple of binary masks and a tuple of materials and turns them into a multiclass masking vector."""
-        assert len(masks) == len(materials)
-        self.masks = masks
-        self.materials = materials
-    # ToDo: Combine binary masks, material = mask fname.
-    pass
+    def fake_rgb(self):
+        pass
 
 
-class Descriptor:
-    """General descriptor class. Makes sure they all have a .material attribute.
-    All descriptors (triangles, etc.) inherit from this.
-    """
-    def __init__(self, mat=None):
-        self.material = mat
-    # ToDo: add start/stop and offer calculating descriptor integral.
-
-
-class TriangleDescriptor(Descriptor):
+class TriangleDescriptor():
     """Takes a start wavelength, peak wavelengths and stop wavelength, and material  as input.
     """
     def __init__(self, wl_start: Union[int, float], wl_peak: Union[int, float], wl_stop: Union[int, float],
-                 material: str = 'Material'):
-        # Input validation
-        if not wl_start < wl_peak < wl_stop:
-            raise ValueError('Invalid start, peak and stop input. Need to be numerical and start < peak < stop.')
-
-        super().__init__(material)
+                 material: str = 'No material specified'):
+        assert (wl_start < wl_peak < wl_stop), 'Points not numerical or not in correct order (start, peak, stop).'
+        # Grabbing the material from the superclass (Tri descriptor)
+        self.material = material
         self.start_wl = wl_start
         self.peak_wl = wl_peak
         self.stop_wl = wl_stop
-        # Wavelength attributes for start, peak and stop
-        # Initiate index attributes
-        self.start_i = None
-        self.peak_i = None
-        self.stop_i = None
 
-    def compare_to_spectrum(self, spectrum, wlv: np.array):
-        """(avg_pearson_r, avg_r_multiplied_by_rel_peak_height) = TriangleDescriptor.compare_to_spectrum(spectrum, wlv, region_divisor)
+    def compare_to_spectrum(self, spectrum, wlv: np.array, multiply_w_region_span=False, prob_threshold=0.5):
+        """
+
         Takes a Spectrum as input and then compares how well it is matched by the descriptors.
         Returns average pearson correlation as well as avg. correl. BOTH muliplied by relative peak height.
         region_divisor: number of bins before and after peak will be divided by this. Is used as avg. region width.
         ToDo:   Perhaps use a Spectra class as input, making the second wlv parameter obsolete. However, now it's more
                 accessible.
         """
-        # Account for values outside of wlv range:
-        assert min(wlv) < self.peak_wl < max(wlv)  # Make sure the peak is BETWEEN the end values
+        # Account for values outside of wlv range.
+        # Make sure the peak is BETWEEN the end values
+        assert min(wlv) < self.peak_wl < max(wlv), 'Peak wavelength falls outside WLV.'
         # if start is below of wlv min, set wlv min as start_wl
         if self.start_wl <= min(wlv):
             self.start_wl = min(wlv)
@@ -271,49 +250,52 @@ class TriangleDescriptor(Descriptor):
             self.stop_wl = max(wlv)
 
         # Get indices for start, peak and stop
-        self.start_i = np.argmin(np.abs(wlv - self.start_wl))
-        self.peak_i = np.argmin(np.abs(wlv - self.peak_wl))
-        self.stop_i = np.argmin(np.abs(wlv - self.stop_wl))
-        logging.debug(f'Start i: {self.start_i} | Peak i: {self.peak_i} | Stop i: {self.stop_i}')
+        start_i = np.argmin(np.abs(wlv - self.start_wl))
+        peak_i = np.argmin(np.abs(wlv - self.peak_wl))
+        stop_i = np.argmin(np.abs(wlv - self.stop_wl))
+        logging.debug(f'Start i: {start_i} | Peak i: {peak_i} | Stop i: {stop_i}')
+        # # Shorter, but more confusing:
+        # indices = tuple([np.argmin(np.abs(wlv - pt)) for pt in [self.start_wl, self.peak_wl, self.stop_wl]])
+        # logging.debug(f'Start i: {indices[0]} | Peak i: {indices[1]} | Stop i: {indices[2]}')
+
+        # Make sure the points are distinct. (as when e.g. the WLV res. is too low)
+        # This at the same time checks that they are in the correct order
+        assert (start_i < peak_i < stop_i), 'Points not distinct on WLV or not in correct order (start, peak, stop).'
 
         # Create descriptor vector:
-        before_peak_len = int(self.peak_i - self.start_i)
-        after_peak_len = int(self.stop_i - self.peak_i)
+        before_peak_len = int(peak_i - start_i)
+        after_peak_len = int(stop_i - peak_i)
         last_value_before_peak = 1 - (1 / before_peak_len)
         asc_linspace = np.linspace(0, last_value_before_peak, before_peak_len)
         desc_linspace = np.linspace(1, 0, after_peak_len + 1)  # +1 because stop is included
         triangle_array = np.hstack([asc_linspace, desc_linspace])
         logging.debug(f'Triangle array: {triangle_array}')
 
-        # Get peak height (avg. of peak region - avg. of start/stop region (depending which is lower))
+        # Get intensities
         # ToDo: Turn this into functions
-        # Make sure the descriptor is wide enough:
-        intensity_start = spectrum[self.start_i]
-        intensity_peak = spectrum[self.peak_i]
-        intensity_stop = spectrum[self.stop_i]
+        intensity_start = spectrum[start_i]
+        intensity_peak = spectrum[peak_i]
+        intensity_stop = spectrum[stop_i]
         logging.debug(f'Start: {intensity_start:.4f} [{self.start_i}] | '
                       f'Peak: {intensity_peak:.4f} [{self.peak_i}] | '
                       f'Stop: {intensity_stop:.4f} [{self.stop_i}]')
-
-        # Make sure the peak is a peak and not a slope or a valley
-        rel_peak_height = 0
-        if intensity_start < intensity_peak and intensity_stop < intensity_peak:
-            low = np.mean([intensity_start, intensity_stop])
-            peak_height = intensity_peak - low
-            rel_peak_height = peak_height / (max(spectrum) - min(spectrum))
-            logging.debug(f'Min: {min(spectrum)} | Max: {max(spectrum)}')
-            logging.debug(f'Peak height: {peak_height}')
-            logging.debug(f'Relative peak height: {rel_peak_height}')
-
+        # Get relative range of the area (better than peak height, since peak height requires... a peak!
+        region_span_abs = np.max(spectrum[start_i:stop_i + 1]) - np.min(spectrum[start_i:stop_i + 1])
+        region_span_rel = region_span_abs / (np.max(spectrum) - np.min(spectrum) )
         # Calculate Pearson's Correlation Coefficient (r):
         # Extract region of interest from spectrum and compare to the triangle
         spec_roi = spectrum[self.start_i:self.stop_i + 1]
-        pearsons_r = scipy.stats.pearsonr(triangle_array, spec_roi)
+        logging.debug(f'Spectrum ROI: {spec_roi}')
+        pearsons_r, pearson_p = scipy.stats.pearsonr(triangle_array, spec_roi)
 
-        # "Deactivate" everything below 0.5:
-        if abs(pearsons_r[0]) >= 0.5:
-            return pearsons_r * rel_peak_height
-        return 0
+        # "Deactivate" everything below prob threshold and return:
+        if abs(pearsons_r) < prob_threshold:
+            return 0
+        elif multiply_w_region_span:
+            return pearsons_r * region_span_rel  # ToDo: FIX
+        else:
+            return pearsons_r
+
 
     def show(self):
         return 'TriangleDescriptor:\t(Start: {0} | Peak: {1} | Stop: {2}. Material: {3})'.\
@@ -355,8 +337,8 @@ class DescriptorSet:
         spectra_count = spectra.shape[0]
         logging.debug(f'Spectra count: {spectra_count}')
         corr_mat = np.zeros((spectra_count, descriptor_count))
-        for spec_i in range(spectra_count):
-            for desc_i in range(descriptor_count):
+        for spec_i in range(spectra_count):  # ToDo: replace index or enumerate()
+            for desc_i in range(descriptor_count):  # ToDo: repl. index or enumerate()
                 logging.info(f'Analysing spectrum {spec_i}: descriptor {desc_i}')
                 corr_mat[spec_i, desc_i] = self.descriptors[desc_i].compare_to_spectrum(spectra[spec_i, :], wlv)
         names = [self.descriptors[i].material + '_desc_' + str(i) for i in range(descriptor_count)]

@@ -35,33 +35,40 @@ import pandas as pd
 
 
 # Use IMEC:
-fname_imec = '/media/findux/DATA/HSI_Data/imec_sample data/sample_data_pills_and_leaf.hdr'
-fname_imec_mask = '/media/findux/DATA/HSI_Data/imec_sample data/sample_data_pills_and_leaf_MASK.png'
+fname = '/media/findux/DATA/HSI_Data/imec_sample data/sample_data_pills_and_leaf.hdr'
+fname_mask = '/media/findux/DATA/HSI_Data/imec_sample data/sample_data_pills_and_leaf_MASK.png'
 
 # Using ???
-fname_plast = '/media/findux/DATA/HSI_Data/recycling, sorting/white_plastics.hdr'
-fname_plast_mask = '/media/findux/DATA/HSI_Data/recycling, sorting/white_plastics_mask.png'
+fname = '/media/findux/DATA/HSI_Data/recycling, sorting/white_plastics.hdr'
+fname_mask = '/media/findux/DATA/HSI_Data/recycling, sorting/white_plastics_mask.png'
 
 # Using Specim:
-fname_specim = '/media/findux/DATA/HSI_Data/SPECIM_field_data/2019-06-04_Flatskär/2019-06-04_005/capture/2019-06-04_005.hdr'
+fname = '/media/findux/DATA/HSI_Data/SPECIM_field_data/2019-06-04_Flatskär/2019-06-04_005/capture/2019-06-04_005.hdr'
+
+# Josef's strange spectra
+fname ='/home/findux/Desktop/HSI GU/10x_PET Particle_corrected.hdr'
 
 print('Loading hdr...')
-spectra = HSI.load_hsi(fname_specim)
-wlv = spectra.wlv
-spectra = spectra.random_subsample(3000)
-# plt.figure('Raw')
-# plt.plot(wlv, spectra.intensities.T)
+hdr, cube, wlv = HSI.load_hsi(fname)
+print(type(cube), cube.shape)
+specs_unf = HSI.unfold_cube(cube)
+print(type(specs_unf), specs_unf.shape)
+spectra = HSI.Spectra(specs_unf, wlv)
 
-print('Scaling...')
-spectra_scaled = HSI.Spectra(preprocessing.scale(spectra.intensities), wlv)
-# plt.figure('Scaled')
-# plt.plot(wlv, spectra_scaled.intensities.T)
+specs_subsample = spectra.random_subsample(10000)
 
-print('Normalizing...')
-spectra_scaled_norm = HSI.Spectra(preprocessing.normalize(spectra_scaled.intensities), wlv)
-plt.figure('Scaled and normalized')
-plt.plot(wlv, spectra_scaled_norm.intensities.T)
-plt.show()
+plt.figure('Raw')
+plt.plot(spectra.wlv, spectra.intensities.T)
+# print('Scaling...')
+# spectra_scaled = HSI.Spectra(preprocessing.scale(spectra.intensities), wlv)
+# # plt.figure('Scaled')
+# # plt.plot(wlv, spectra_scaled.intensities.T)
+#
+# print('Normalizing...')
+# spectra_scaled_norm = HSI.Spectra(preprocessing.normalize(spectra_scaled.intensities), wlv)
+# plt.figure('Scaled and normalized')
+# plt.plot(wlv, spectra_scaled_norm.intensities.T)
+# plt.show()
 
 # # Seaborn
 # # AINT NOBODY GOT TIME FOR THIS

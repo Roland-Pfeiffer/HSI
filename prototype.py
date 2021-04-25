@@ -1,5 +1,5 @@
 import logging
-# logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s]\t%(message)s')
+logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s]\t%(message)s')
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,21 +9,26 @@ import HSI
 
 
 fname = '/media/findux/DATA/HSI_Data/imec_sample data/sample_data_pills_and_leaf.hdr'
+
+px_leaf = HSI.load_pixel(fname, 700, 700, 'Leaf')
+px_pill = HSI.load_pixel(fname, 1130, 1140, 'Pill')
+spects = px_leaf
+spects.add_spectra(px_pill)
+
+
+
 desc_1 = HSI.TriangleDescriptor(669, 710, 769, 'T1')
-# desc_2 = HSI.TriangleDescriptor
+desc_2 = HSI.TriangleDescriptor(766, 783, 809, 'T1')
+desc_3 = HSI.TriangleDescriptor(810, 826, 850, 'T1')
+
+set_1 = HSI.DescriptorSet(desc_1)
+set_1.add_descriptor(desc_2)
+set_1.add_descriptor(desc_3)
+
 
 triplot = np.array([[desc_1.start_wl, desc_1.peak_wl, desc_1.stop_wl],
                     [0, 0.03, 0]])
 
-a = np.array([1, 2, 3])
-print(type(a))
-
-
-px_leaf = HSI.load_pixel(fname, 700, 700, 'Leaf')
-px_pill = HSI.load_pixel(fname, 1130, 1140, 'Pill')
-
-spects = px_leaf
-spects.add_spectra(px_pill)
 
 print(type(spects.wlv))
 print(type(spects.intensities))
@@ -52,25 +57,12 @@ ax2 = ax1.twinx()
 color = 'tab:blue'
 ax2.set_ylabel('Derivative', color=color)  # we already handled the x-label with ax1
 ax2.plot(spects.wlv, derivs.intensities.T, color=color)
+plt.plot(triplot[0], triplot[1], color='green')
+
 ax2.tick_params(axis='y', labelcolor=color)
 
 fig.tight_layout()  # otherwise the right y-label is slightly clipped
 plt.show()
 
-# plt.figure('Smoothed')
-# plt.plot(spects.wlv, spects.intensities.T)
-# plt.title('Smoothed')
-
-
-# plt.figure('Smoothed')
-# plt.title('Smoothed')
-# plt.plot(spects.wlv, smooth_derivs.T)
-# plt.plot(triplot[0], triplot[1])
-#
-# plt.plot()
-# plt.show()
-#
-# set_1 = HSI.DescriptorSet(desc_1)
-# corr_mat = set_1.correlate(spects.intensities, spects.wlv)
-#
-# print(corr_mat)
+corr_mat = set_1.correlate(derivs.intensities, spects.wlv)
+print(corr_mat)
