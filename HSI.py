@@ -178,19 +178,33 @@ class BinaryMask:
 
 
 class Spectra:
-    """Class containing a 2D np.array of the intensities (intensities), a wavelength vector (wlv) and a list of the
-    materials of each intensity entry (can be None.
+    """
+    Class containing a 2D np.array of the intensities (intensities), a wavelength vector (wlv) and a list of the
+    materials of each intensity entry (can be None).
     """
     def __init__(self, intensities: np.array, wlv: np.array, material: list = None):
-        assert isinstance(intensities, np.ndarray), TypeError('Intensities need to be a numpy array.')
-        assert isinstance(wlv, np.ndarray), TypeError('WLV needs to be a numpy array.')
+        """
+        @param intensities: np.array. Dim 0: pixel, Dim 1: wavelengths. 1D will be forced into 2D.
+        @param wlv: 1D np.array
+        @param material: Material string (or None).
+        """
         self.wlv = wlv
-        self.intensities = intensities
+        self.intensities = np.atleast_2d(intensities)  # Needs to be a 2D array, even when just 1 pixel.
+        logging.info(f'WLV len: {len(self.wlv)}')
+        logging.info(f'Ints. shape: {self.intensities.shape}')
+        assert len(self.wlv) == self.intensities.shape[1], ValueError('WLV length does not match intensities.')
+
         # If the material column is not a list, turn it into one.
         if isinstance(material, str):
-            self.material = [material]
+            self.material = [material for i in range(self.intensities.shape[1])]
         elif isinstance(material, list):
-            self.material = material
+            if len(material) == self.intensities.shape[0]:
+                self.material = material
+            elif len(material) == 1:
+                self.material = [material for i in range(self.intensities.shape[1])]
+            else:
+                raise ValueError('Ambiguous material column (len neither 1 nor similar to pixel count).')
+
         # Make sure intensities are a 2D array
         if self.intensities.ndim == 1:
             self.intensities = np.array([self.intensities, ])
@@ -222,11 +236,22 @@ class Spectra:
         np.savez(savename, self.intensities, self.wlv)
 
     def plot(self):
-        # ToDo: add a material legend.
-        # ToDo: (in the same vein) add a group-my-material option
-        x = self.wlv
-        y = self.intensities
-        plt.plot(x, y.T)
+
+        def legend_without_duplicate_labels(ax):
+            """From: https://stackoverflow.com/a/56253636
+            Not sure how it works."""
+            handles, labels = ax.get_legend_handles_labels()
+            unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
+            ax.legend(*zip(*unique))
+
+        fig, ax = plt.subplots()
+        for i, material in enumerate(np.unique(self.material)):
+            i_in = np.argwhere(np.array(self.material) == material).flatten()
+            ax.plot(self.wlv, self.intensities[i_in].T,
+                    label=material,
+                    color=next(ax._get_lines.prop_cycler)['color'])
+        legend_without_duplicate_labels(ax)
+        plt.show()
 
     def smoothen_savgol(self, window_size, polynomial: int):
         """Returnes a Spectra object with smoothed intensity array"""
@@ -244,12 +269,31 @@ class Spectra:
         grads = np.gradient(self.intensities, axis=1)
         return Spectra(grads, self.wlv, self.material)
 
-    def verify(self):
+    def select_by_material(self, material: str):
+        _i_in = np.where(self.material == material)
+        logging.info(f'IN indices: {_i_in}')
+        return _i_in
+
+    def verify_bin_counts(self):
         """Returns True if wlv len fits the spectral dimension of the intensities matrix"""
         if len(self.wlv) == self.intensities.shape[1]:
             return True
         else:
             return False
+
+    def return_as_df(self, intensities_as_list=True):
+        """
+        Returns a pd dataframe that contains the intensities as rows, wlv as column names, while the last column
+        contains the material.
+        @return:
+        """
+        if intensities_as_list:
+            _df = pd.DataFrame({'Intensities': self.intensities.tolist(),
+                                'Material': self.material})
+        else:
+            _df = pd.DataFrame(self.intensities, columns=self.wlv)
+            _df['Material'] = self.material
+        return _df
 
     def fake_rgb(self):
         pass
@@ -291,7 +335,7 @@ class TriangleDescriptor():
         self.start_i = np.argmin(np.abs(wlv - self.start_wl))
         self.peak_i = np.argmin(np.abs(wlv - self.peak_wl))
         self.stop_i = np.argmin(np.abs(wlv - self.stop_wl))
-        logging.debug(f'Start i: {self.start_i} | Peak i: {self.peak_i} | Stop i: {self.stop_i}')
+        logging.info(f'Start i: {self.start_i} | Peak i: {self.peak_i} | Stop i: {self.stop_i}')
 
         # Make sure the points are distinct. (as when e.g. the WLV res. is too low)
         # This at the same time checks that they are in the correct order
@@ -305,14 +349,14 @@ class TriangleDescriptor():
         asc_linspace = np.linspace(0, last_value_before_peak, before_peak_len)
         desc_linspace = np.linspace(1, 0, after_peak_len + 1)  # +1 because stop is included
         triangle_array = np.hstack([asc_linspace, desc_linspace])
-        logging.debug(f'Triangle array: {triangle_array}')
+        logging.info(f'Triangle array: {triangle_array}')
 
         # Get intensities
         # ToDo: Turn this into functions
         intensity_start = spectrum[self.start_i]
         intensity_peak = spectrum[self.peak_i]
         intensity_stop = spectrum[self.stop_i]
-        logging.debug(f'Start: {intensity_start:.4f} [{self.start_i}] | '
+        logging.info(f'Start: {intensity_start:.4f} [{self.start_i}] | '
                       f'Peak: {intensity_peak:.4f} [{self.peak_i}] | '
                       f'Stop: {intensity_stop:.4f} [{self.stop_i}]')
         # Get relative range of the area (better than peak height, since peak height requires... a peak!
@@ -321,7 +365,7 @@ class TriangleDescriptor():
         # Calculate Pearson's Correlation Coefficient (r):
         # Extract region of interest from spectrum and compare to the triangle
         spec_roi = spectrum[self.start_i:self.stop_i + 1]
-        logging.debug(f'Spectrum ROI: {spec_roi}')
+        logging.info(f'Spectrum ROI: {spec_roi}')
         pearsons_r, pearson_p = scipy.stats.pearsonr(triangle_array, spec_roi)
 
         # "Deactivate" everything below prob threshold and return:
@@ -370,7 +414,7 @@ class DescriptorSet:
         # Avoid dimension confusions: Force spectra to be 2D array (using ndmin=2):
         spectra = np.array(spectra, ndmin=2)
         spectra_count = spectra.shape[0]
-        logging.debug(f'Spectra count: {spectra_count}')
+        logging.info(f'Spectra count: {spectra_count}')
         corr_mat = np.zeros((spectra_count, descriptor_count))
         for spec_i in range(spectra_count):  # ToDo: replace index or enumerate()
             for desc_i in range(descriptor_count):  # ToDo: repl. index or enumerate()

@@ -7,8 +7,8 @@ from scipy.signal import savgol_filter
 
 import HSI
 
-logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s]\t%(message)s')
-logging.disable()
+logging.basicConfig(level=logging.INFO, format='[%(levelname)s]\t%(message)s')
+# logging.disable()
 
 fname = '/media/findux/DATA/spectral_data/imec_sample data/sample_data_pills_and_leaf.hdr'
 
@@ -30,13 +30,14 @@ triplot = np.array([[desc_1.start_wl, desc_1.peak_wl, desc_1.stop_wl],
                     [0, 0.03, 0]])
 
 print(f'WLV vector type:  {type(spects.wlv)}')
-print(f'Intensities type: {type(spects.intensities)}')
+print(f'Intensities type: {type(spects.intensities)} Shape: {spects.intensities.shape}')
 
 spects = spects.smoothen_savgol(5, 0)
 derivs = spects.turn_into_gradient()
 
-for material in spects.material:
-    print(material)
+print(spects.material)
+print(spects.select_by_material('Leaf'))
+print(spects.intensities)
 
 # Double-axis plot code from: https://matplotlib.org/2.2.5/gallery/api/two_scales.html
 fig, ax1 = plt.subplots()
@@ -59,3 +60,6 @@ plt.show()
 
 corr_mat = set_1.correlate(derivs.intensities, spects.wlv)
 print(corr_mat)
+
+spects.plot()
+plt.show()
