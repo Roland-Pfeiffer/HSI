@@ -8,24 +8,30 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import logging
 
+
 def get_files(fpath):
+    """Returns a list with file paths of every file in the folder, and a list with all file names."""
     files = sorted(os.listdir(fpath))
     if 'BACKUPS' in files:
         files.remove('BACKUPS')
     fpaths = [fpath + file for file in files]
     return fpaths, files
 
-def show_struct(fpath):
-    fpaths, files = get_files(fpath)
-    for path in fpaths:
-        with open(path) as f:
-            pst = os.path.split(path)
-            print(f.readlines()[2].strip(), pst[-1])
 
-def cleanup(fpath):
-    """Turns comma-seperated into """
+def show_csv_structure(fpath):
+    """Shows the structure of the files within a given directory by printing the third line of each file.
+    Assumes that the files are csv files.
+    Also assumes that there are no other directories. Ignores a BACKUPS directory if present."""
     fpaths, files = get_files(fpath)
-    # Create backups
+    for path, file in zip(fpaths, files):
+        with open(path) as f:
+            contents = f.readlines()
+            pst = os.path.split(path)
+            print(f'{file.ljust(10)}{contents[2].strip()}')
+
+
+def create_backups(fpath):
+    fpaths, files = get_files(fpath)
     if not os.path.isdir(fpath + '/BACKUPS'):
         print('Creating backups.')
         os.mkdir(fpath + '/BACKUPS')
@@ -33,6 +39,15 @@ def cleanup(fpath):
             shutil.copy(path, os.path.split(path)[0] + '/BACKUPS/' + os.path.split(path)[1])
     else:
         print('Backups already found.')
+
+
+def cleanup(fpath):
+    """Turns turns apostrophe-separated into comma-separated
+     and comma-decimal CSV into dot-decimal CSV."""
+    fpaths, files = get_files(fpath)
+    # Create backups
+    create_backups(fpath)
+
     # Correct data
     for i in range(len(fpaths)):
         with open(fpaths[i], 'r') as read:
@@ -51,6 +66,7 @@ def cleanup(fpath):
         with open(fpaths[i], 'w') as write:
             write.writelines(lines)
 
+
 def load_samples_in_set(fpath):
     samples = []
     fpaths, files = get_files(fpath)
@@ -63,6 +79,7 @@ def load_samples_in_set(fpath):
         name = os.path.split(path)[1].split('.')[0]
         samples.append(HSI.Spectra(intensities, WLV, name))
     return samples
+
 
 def check_compatibility(fpath):
     set = load_samples_in_set(fpath)

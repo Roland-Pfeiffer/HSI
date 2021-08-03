@@ -19,7 +19,7 @@ mask = HSI.BinaryMask(mask_path, 'Litter')
 
 hdr, cube, wlv = HSI.load_hsi(fpath_hsi)
 data_unf = HSI.unfold_cube(cube)
-data_plastic = data_unf[mask.in_value_indices, :]
+data_plastic = data_unf[mask.in_indices, :]
 
 data_plastic = HSI.Spectra(data_plastic, wlv)
 plt.plot(wlv, data_plastic.T)

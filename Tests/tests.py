@@ -5,6 +5,7 @@ import pandas as pd
 import spectral
 
 import HSI
+import load_sample_spectra
 
 fname = '/media/findux/DATA/spectral_data/SPECIM_field_data/2019-07-16_HS_images_laid_out/2019-07-16_007/capture/2019-07-16_007.hdr'
 fname_masl = '/media/findux/DATA/spectral_data/SPECIM_field_data/2019-07-16_HS_images_laid_out/2019-07-16_007/2019-07-16_007_BG.tif'
@@ -25,3 +26,6 @@ print(x[0], x[-1])
 #
 # a = [1, 2, 3, 4]
 # print([a])
+
+fpath = '/media/findux/DATA/spectral_data/reference_spectra_josef/'
+load_sample_spectra.show_csv_structure(fpath)

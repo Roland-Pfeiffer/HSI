@@ -19,12 +19,33 @@ import logging
 # ToDo: normalisation, mean centering (in preprocessing function?)
 # ToDo: Allow masking when creating a spectra object
 # ToDo: align_wlv: Also produce an error estimate between the WLVs
-
+# ToDo: align_wlv: get it to work for different resolutions (scipy interpolate?)
+# ToDo: load_and_unfold(): finish this and add mask functionality
+# ToDo: load_area()
+# ToDo: mask_spectra()
+# ToDo: find_peaks()
+# ToDo: Spectra.add_spectra(): mention skipped spectra, don't stop the script w/ assert (as is the case now)
+# ToDo: Spectra.plot(): add a material legend.
+# ToDo: Spectra.plot(): (in the same vein) add a group-my-material option
+# ToDo: TriangleDescriptor.compare_to_spectrum(): - Perhaps use a Spectra class as input, making the second wlv
+#                                                   parameter obsolete. However, now it's more accessible.
+#                                                 - turn "get intensities" into a function.
+#                                                 - fix line: return pearsons_r * region_span_rel
+# ToDo: DescriptorSet.correlate(): replace index or enumerate()
 
 def load_hsi(fpath: str) -> 'hdr, cube, wlv':
-    """spectra = load_hsi(fpath)\n\n
-    Takes path to a header (.hdr) hsi file and returns header file, hypercube array and wavelength vector (WLV)
-    (aka wavenumbers). WLV is retrieved from the centers of bands.
+    """
+    spectra = load_hsi(fpath)
+    Takes path to a header (.hdr) hsi file and returns header file, hypercube array and wavelength vector (WLV) with the
+    wavelengths in nm (not wavenumbers in cm-1!). WLV is retrieved from the centers of bands.
+    :param fpath: path to .hdr file of the hyperspectral image
+    :return: (hdr, cube, wlv)
+    """
+    """
+    :param fpath: path to .hdr file of the hyperspectral image
+    :return: tuple of hdr, cube and wlv
+
+    
     To load just one pixel's spectrum, use load_pixel().
     :rtype: .hdr, np.array, np.array
     """
@@ -35,14 +56,23 @@ def load_hsi(fpath: str) -> 'hdr, cube, wlv':
     return hdr, cube, wlv
 
 
-def load_pixel(hdr_fpath: str, row, col, material: str=None) -> 'spectrum: Spectra':
-    """spectrum, wlv = load_pixel(fpath, row, col)
-    Reads the spectrum of given pixel and outputs a Spectra object.
+def load_pixel(hdr_fpath: str, row, col, material: str = None) -> 'spectrum: Spectra':
+    """
+    @param hdr_fpath:
+    @type hdr_fpath:
+    @param row:
+    @type row:
+    @param col:
+    @type col:
+    @param material:
+    @type material:
+    @return:
+    @rtype:
     """
     hdr = spectral.open_image(hdr_fpath)
     spec = hdr.read_pixel(row, col)
     wlv = np.array(hdr.bands.centers)
-    out = Spectra(spec, wlv, list(material))
+    out = Spectra(spec, wlv, [material])
     return out
 
 
@@ -56,7 +86,7 @@ def load_area(corner_tl: tuple, corner_br: tuple, material: str=None):
 
 def load_and_unfold(hdr_path, mask=None):
     _hdr, _cube, _path = load_hsi(hdr_path)
-    # ToDo: Inclomplete
+    # ToDo: finish this and add mask functionality
 
 
 def unfold_cube(cube):
@@ -101,7 +131,11 @@ def align_wlv(wlv_a, reference_wlv):
 
 
 def wavelen_to_wavenum(wl_nm: Union[float, int]):
-    """Takes wavelength (in nm) and returns the wavenumber (per cm⁻¹)"""
+    """
+    Takes wavelength (in nm) and returns the wavenumber (per cm⁻¹)
+    :param wl_nm: Wavelength (in nm)
+    :return: wavemunber (cm ⁻¹)
+    """
     return 10_000_000 / wl_nm  # 10 mio nm in one cm
 
 
@@ -125,11 +159,12 @@ def correlation(a: np.array, b: np.array):
 
 class BinaryMask:
     """
-    Binary mask object with the following attributes:
-    .mask_2D        binary 2D array
-    .full_vector    unfolded mask (with 0 for out-, 1 for in-values)
-    .index_vector   unfolded mask vector containing indices for in-values
-    .material       Material string
+    Binary mask object.
+    Attributes:
+        .mask_2D        binary 2D array
+        .full_vector    unfolded mask (with 0 for out-, 1 for in-values)
+        .in_indices     unfolded mask vector containing indices for in-values
+        .material       Material string
     """
     def __init__(self, img_path: str, material: str):
         _mask = plt.imread(img_path)[:, :, 0]
@@ -138,12 +173,13 @@ class BinaryMask:
         _x, _y = _mask.shape
         self.mask_2D = _mask
         self.full_vector = _mask.reshape((_x * _y))  # Unfold
-        self.in_value_indices = np.where(self.full_vector == 1)[0]  # Locate only "in" values
+        self.in_indices = np.where(self.full_vector == 1)[0]  # Locate only "in" values
         self.material = material
 
 
 class Spectra:
-    """2D np.array containing a set of spectra.
+    """Class containing a 2D np.array of the intensities (intensities), a wavelength vector (wlv) and a list of the
+    materials of each intensity entry (can be None.
     """
     def __init__(self, intensities: np.array, wlv: np.array, material: list = None):
         assert isinstance(intensities, np.ndarray), TypeError('Intensities need to be a numpy array.')
@@ -180,6 +216,7 @@ class Spectra:
         self.intensities = np.vstack((self.intensities, spectra.intensities))
         # Update (i.e. append) material column
         [self.material.append(material) for material in spectra.material]
+        # ToDo: make it possible to mix None and "non-None" materials.
 
     def export_to_npz(self, savename):
         np.savez(savename, self.intensities, self.wlv)
@@ -203,7 +240,7 @@ class Spectra:
         return np.gradient(self.intensities, axis=1)
 
     def turn_into_gradient(self):
-        """Returns an array where the 'intensities' array actually contains the derivatives."""
+        """Returns a Spectra object where the 'intensities' array actually contains the (1st) derivatives."""
         grads = np.gradient(self.intensities, axis=1)
         return Spectra(grads, self.wlv, self.material)
 
@@ -224,15 +261,16 @@ class TriangleDescriptor():
     def __init__(self, wl_start: Union[int, float], wl_peak: Union[int, float], wl_stop: Union[int, float],
                  material: str = 'No material specified'):
         assert (wl_start < wl_peak < wl_stop), 'Points not numerical or not in correct order (start, peak, stop).'
-        # Grabbing the material from the superclass (Tri descriptor)
         self.material = material
         self.start_wl = wl_start
         self.peak_wl = wl_peak
         self.stop_wl = wl_stop
+        self.start_i = None
+        self.peak_i = None
+        self.stop_i = None
 
     def compare_to_spectrum(self, spectrum, wlv: np.array, multiply_w_region_span=False, prob_threshold=0.5):
         """
-
         Takes a Spectrum as input and then compares how well it is matched by the descriptors.
         Returns average pearson correlation as well as avg. correl. BOTH muliplied by relative peak height.
         region_divisor: number of bins before and after peak will be divided by this. Is used as avg. region width.
@@ -250,21 +288,19 @@ class TriangleDescriptor():
             self.stop_wl = max(wlv)
 
         # Get indices for start, peak and stop
-        start_i = np.argmin(np.abs(wlv - self.start_wl))
-        peak_i = np.argmin(np.abs(wlv - self.peak_wl))
-        stop_i = np.argmin(np.abs(wlv - self.stop_wl))
-        logging.debug(f'Start i: {start_i} | Peak i: {peak_i} | Stop i: {stop_i}')
-        # # Shorter, but more confusing:
-        # indices = tuple([np.argmin(np.abs(wlv - pt)) for pt in [self.start_wl, self.peak_wl, self.stop_wl]])
-        # logging.debug(f'Start i: {indices[0]} | Peak i: {indices[1]} | Stop i: {indices[2]}')
+        self.start_i = np.argmin(np.abs(wlv - self.start_wl))
+        self.peak_i = np.argmin(np.abs(wlv - self.peak_wl))
+        self.stop_i = np.argmin(np.abs(wlv - self.stop_wl))
+        logging.debug(f'Start i: {self.start_i} | Peak i: {self.peak_i} | Stop i: {self.stop_i}')
 
         # Make sure the points are distinct. (as when e.g. the WLV res. is too low)
         # This at the same time checks that they are in the correct order
-        assert (start_i < peak_i < stop_i), 'Points not distinct on WLV or not in correct order (start, peak, stop).'
+        assert (self.start_i < self.peak_i < self.stop_i), 'Points not distinct on WLV or not in correct order (start, peak, stop).'
+        # ToDo: make this a non-exit warning
 
         # Create descriptor vector:
-        before_peak_len = int(peak_i - start_i)
-        after_peak_len = int(stop_i - peak_i)
+        before_peak_len = int(self.peak_i - self.start_i)
+        after_peak_len = int(self.stop_i - self.peak_i)
         last_value_before_peak = 1 - (1 / before_peak_len)
         asc_linspace = np.linspace(0, last_value_before_peak, before_peak_len)
         desc_linspace = np.linspace(1, 0, after_peak_len + 1)  # +1 because stop is included
@@ -273,14 +309,14 @@ class TriangleDescriptor():
 
         # Get intensities
         # ToDo: Turn this into functions
-        intensity_start = spectrum[start_i]
-        intensity_peak = spectrum[peak_i]
-        intensity_stop = spectrum[stop_i]
+        intensity_start = spectrum[self.start_i]
+        intensity_peak = spectrum[self.peak_i]
+        intensity_stop = spectrum[self.stop_i]
         logging.debug(f'Start: {intensity_start:.4f} [{self.start_i}] | '
                       f'Peak: {intensity_peak:.4f} [{self.peak_i}] | '
                       f'Stop: {intensity_stop:.4f} [{self.stop_i}]')
         # Get relative range of the area (better than peak height, since peak height requires... a peak!
-        region_span_abs = np.max(spectrum[start_i:stop_i + 1]) - np.min(spectrum[start_i:stop_i + 1])
+        region_span_abs = np.max(spectrum[self.start_i:self.stop_i + 1]) - np.min(spectrum[self.start_i:self.stop_i + 1])
         region_span_rel = region_span_abs / (np.max(spectrum) - np.min(spectrum) )
         # Calculate Pearson's Correlation Coefficient (r):
         # Extract region of interest from spectrum and compare to the triangle
@@ -295,7 +331,6 @@ class TriangleDescriptor():
             return pearsons_r * region_span_rel  # ToDo: FIX
         else:
             return pearsons_r
-
 
     def show(self):
         return 'TriangleDescriptor:\t(Start: {0} | Peak: {1} | Stop: {2}. Material: {3})'.\
@@ -341,8 +376,10 @@ class DescriptorSet:
             for desc_i in range(descriptor_count):  # ToDo: repl. index or enumerate()
                 logging.info(f'Analysing spectrum {spec_i}: descriptor {desc_i}')
                 corr_mat[spec_i, desc_i] = self.descriptors[desc_i].compare_to_spectrum(spectra[spec_i, :], wlv)
+
+        correlation_matrix = pd.DataFrame(corr_mat)
+        # Create understandable names for the descriptors and assign them to the dataframe
         names = [self.descriptors[i].material + '_desc_' + str(i) for i in range(descriptor_count)]
-        data_out = pd.DataFrame(corr_mat)
         rename_dict = dict(zip(range(descriptor_count), names))
-        data_out.rename(columns=rename_dict, inplace=True)
-        return data_out
+        correlation_matrix.rename(columns=rename_dict, inplace=True)
+        return correlation_matrix
