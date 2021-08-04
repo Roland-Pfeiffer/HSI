@@ -196,13 +196,11 @@ class Spectra:
 
         # If the material column is not a list, turn it into one.
         if material is None:
-            self.material = [None for i in range(self.intensities.shape[0])]
+            self.material = ['No_material' for i in range(self.intensities.shape[0])]
         elif len(material) == 1:
-            self.material = [material for i in range(self.intensities.shape[0])]
-        elif len(material) > 1:
-            assert len(material) == self.intensities.shape[0]
-            if len(material) == self.intensities.shape[0]:
-                self.material = material * self.intensities.shape[0]
+            self.material = material * self.intensities.shape[0]
+        elif len(material) == self.intensities.shape[0]:
+            self.material = material
         else:
             raise ValueError('Ambiguous material column (len neither 1 nor similar to pixel count).')
 
@@ -221,27 +219,28 @@ class Spectra:
         return Spectra(self.intensities[subset_index], self.wlv, self.material)
 
     def add_spectra(self, new_spectra: Spectra):
-        assert np.alltrue(self.wlv == new_spectra.wlv), 'ERROR: WLVs not identical.Spectra not merged.'
-        # ToDo: add a function to align wlvs
-        # ToDo: Maybe just note that it was skipped so it doesn't break the code
-        # 'Glue' the new spectra under the existing one
-        self.intensities = np.vstack((self.intensities, new_spectra.intensities))
-        # Update (i.e. append) material column
-        print(new_spectra.material)
-        if new_spectra.material is not None:
-            [self.material.append(material) for material in new_spectra.material]
+        if not np.alltrue(self.wlv == new_spectra.wlv):
+            print('ERROR: WLVs not identical.Spectra not merged.')
         else:
-            [self.material.append(None) for i in range(new_spectra.intensities.shape[0])]
-        # ToDo: make it possible to mix None and "non-None" materials.
+            # ToDo: add a function to align wlvs
+            # ToDo: Maybe just note that it was skipped so it doesn't break the code
+            # 'Glue' the new spectra under the existing one
+            self.intensities = np.vstack((self.intensities, new_spectra.intensities))
+            # Update (i.e. append) material column
+            if new_spectra.material is not None:
+                self.material += new_spectra.material
+            else:
+                [self.material.append('No_material') for i in range(new_spectra.intensities.shape[0])]
 
     def export_to_npz(self, savename):
         np.savez(savename, self.intensities, self.wlv)
 
     def plot(self):
-
+        """
+        Plots the spectra, colored by material.
+        """
         def legend_without_duplicate_labels(ax):
-            """From: https://stackoverflow.com/a/56253636
-            Not sure how it works."""
+            """From: https://stackoverflow.com/a/56253636"""
             handles, labels = ax.get_legend_handles_labels()
             unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
             ax.legend(*zip(*unique))
@@ -253,6 +252,7 @@ class Spectra:
                     label=material,
                     color=next(ax._get_lines.prop_cycler)['color'])
         legend_without_duplicate_labels(ax)
+        ax.grid()
         plt.show()
 
     def smoothen_savgol(self, window_size, polynomial: int):
