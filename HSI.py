@@ -195,19 +195,16 @@ class Spectra:
         assert len(self.wlv) == self.intensities.shape[1], ValueError('WLV length does not match intensities.')
 
         # If the material column is not a list, turn it into one.
-        if isinstance(material, str):
-            self.material = [material for i in range(self.intensities.shape[1])]
-        elif isinstance(material, list):
+        if material is None:
+            self.material = [None for i in range(self.intensities.shape[0])]
+        elif len(material) == 1:
+            self.material = [material for i in range(self.intensities.shape[0])]
+        elif len(material) > 1:
+            assert len(material) == self.intensities.shape[0]
             if len(material) == self.intensities.shape[0]:
-                self.material = material
-            elif len(material) == 1:
-                self.material = [material for i in range(self.intensities.shape[1])]
-            else:
-                raise ValueError('Ambiguous material column (len neither 1 nor similar to pixel count).')
-
-        # Make sure intensities are a 2D array
-        if self.intensities.ndim == 1:
-            self.intensities = np.array([self.intensities, ])
+                self.material = material * self.intensities.shape[0]
+        else:
+            raise ValueError('Ambiguous material column (len neither 1 nor similar to pixel count).')
 
     def random_subsample(self, n=250, seed: int = 42):
         """
@@ -223,13 +220,18 @@ class Spectra:
         subset_index = random.choices(range(self.intensities.shape[0]), k=n)
         return Spectra(self.intensities[subset_index], self.wlv, self.material)
 
-    def add_spectra(self, spectra: Spectra):
-        assert np.alltrue(self.wlv == spectra.wlv), 'ERROR: WLVs not identical.Spectra not merged.'
+    def add_spectra(self, new_spectra: Spectra):
+        assert np.alltrue(self.wlv == new_spectra.wlv), 'ERROR: WLVs not identical.Spectra not merged.'
+        # ToDo: add a function to align wlvs
         # ToDo: Maybe just note that it was skipped so it doesn't break the code
         # 'Glue' the new spectra under the existing one
-        self.intensities = np.vstack((self.intensities, spectra.intensities))
+        self.intensities = np.vstack((self.intensities, new_spectra.intensities))
         # Update (i.e. append) material column
-        [self.material.append(material) for material in spectra.material]
+        print(new_spectra.material)
+        if new_spectra.material is not None:
+            [self.material.append(material) for material in new_spectra.material]
+        else:
+            [self.material.append(None) for i in range(new_spectra.intensities.shape[0])]
         # ToDo: make it possible to mix None and "non-None" materials.
 
     def export_to_npz(self, savename):

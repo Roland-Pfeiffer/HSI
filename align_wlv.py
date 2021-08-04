@@ -9,7 +9,7 @@ def align_wlv(a, b):
     """Aligns WLV b with WLV a.
     ToDo: Add threshold?
     ToDo: Offer UNION, INTERSECT, ORIGINAL and NEW
-    ToDo: align spectra!
+    ToDo: align spectra! This needs to carry over how many bins have been cut off from each side.
     """
     if (len(a) == len(b)) and np.all(a == b):
         logging.info('WLVs are identical.')
@@ -51,6 +51,7 @@ a = np.array([0, 1, 2, 3])
 b = np.array([-0.9, 0.1, 1.1, 2.1, 3.1])
 ba = align_wlv(a, b)
 print(a)
+print(b)
 print(ba)
 print()
 
@@ -58,4 +59,5 @@ a = np.array([-0.9, 0.1, 1.1, 2.1, 3.1])
 b = np.array([0, 1, 2, 3])
 ba = align_wlv(a, b)
 print(a)
+print(b)
 print(ba)
