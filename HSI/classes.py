@@ -32,6 +32,15 @@ class Hypercube:
         assert np.all(wl_min <= val <= wl_max for wl in (r, g, b))
         rgb_bins = [self.wlv[np.abs(self.wlv - wl).argmin()] for wl in [r, g, b]]
 
+    def __repr__(self):
+        return f"Hypercube(cube={self.cube}, wlv={self.wlv}, file_name={self.file_name}"
+
+    def __str__(self):
+        _fname = self.file_name
+        if not _fname:
+            _fname = "[no file name]"
+        return f"Hypercube of dims {self.cube.shape}. WLV: {len(self.wlv)} bins from {self.wlv.min()} to {self.wlv.max()}. File name: {_fname}"
+
 
 class Spectra:
     def __init__(self, intensities: np.ndarray, wlv: np.ndarray, cube_dims: tuple[int, int, int]):
