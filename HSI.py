@@ -100,14 +100,6 @@ def unfold_cube(cube):
     return spectra
 
 
-def mask_spectra(spectra: Spectra, mask: BinaryMask):
-    pass  # ToDo: mask spectra
-
-
-def find_peaks(spectrum: np.array, wlv: np.array):
-    pass
-
-
 def align_wlv(wlv_a, reference_wlv):
     """Aligns wavelength vector (WLV) a with reference WLV.
     Returns the aligned version of wavelength vector a a as a numpy array."""
@@ -296,9 +288,6 @@ class Spectra:
             _df = pd.DataFrame(self.intensities, columns=self.wlv)
             _df['Material'] = self.material
         return _df
-
-    def fake_rgb(self):
-        pass
 
 
 class TriangleDescriptor():
