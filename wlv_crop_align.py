@@ -5,7 +5,7 @@ import numpy as np
 from scipy.signal import correlate
 import logging
 
-import create_alignment_test_data
+import create_test_data
 import HSI
 
 logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s]\t%(message)s')
@@ -130,8 +130,8 @@ if __name__ == '__main__':
     print(ba)
 
     # ------------------------------------------------------------- Cropping -------------------------------------------
-    data = create_alignment_test_data.create_data()
-    raw_spec = create_alignment_test_data.create_data()
+    data = create_test_data.create_alignment_test_data()
+    raw_spec = create_test_data.create_alignment_test_data()
     for spec in raw_spec:
         print(spec.wlv)
         print(spec.intensities)

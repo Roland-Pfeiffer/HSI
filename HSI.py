@@ -266,7 +266,7 @@ class Spectra:
         assert self.intensities.ndim == 2
         return np.gradient(self.intensities, axis=1)
 
-    def turn_into_gradient(self):
+    def return_intensity_gradient(self):
         """Returns a Spectra object where the 'intensities' array actually contains the (1st) derivatives."""
         grads = np.gradient(self.intensities, axis=1)
         return Spectra(grads, self.wlv, self.material)

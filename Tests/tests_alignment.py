@@ -4,7 +4,7 @@ import HSI
 import pandas as pd
 import time
 import matplotlib.pyplot as plt
-import create_alignment_test_data
+import create_test_data
 import logging
 logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s]\t%(message)s')
 logging.disable()
