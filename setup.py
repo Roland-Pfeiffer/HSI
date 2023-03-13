@@ -1,12 +1,13 @@
-from distutils.core import setup
+from setuptools import setup
+import pyperspectral
 
 setup(
-    name='HSI',
-    version='',
-    packages=[''],
+    name='pyperspectral',
+    version=pyperspectral.__version__,
+    packages=['pyperspectral'],
     url='',
     license='',
-    author='findux',
+    author='Roland Pfeiffer',
     author_email='',
     description=''
 )
